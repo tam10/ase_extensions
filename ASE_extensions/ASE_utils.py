@@ -6,10 +6,13 @@ import re
 import os
 import molmod
 import pickle
+import ConfigParser
 from pbs_util import pbs
 from copy import deepcopy
-from general_utils import plaintext2html
+from cc_utils.general_utils import plaintext2html
 
+config = ConfigParser.RawConfigParser()
+config.read(os.path.expanduser('~/.cc_notebook.ini'))
 
 #import pandas
 #import pandas.core.format as fmt
@@ -132,7 +135,8 @@ def unsymmetrize(atoms, seed=None):
 def gen_fchks(list_mols):
     """generates fchk files from chk point files for the molecules specified.
     assumes chk point files exist in the scratch directory"""
-    scratch, local_home = os.environ['GAUSS_SCRATCH'], os.path.realpath(os.environ['ASE_HOME'])
+    #scratch, local_home = os.environ['GAUSS_SCRATCH'], os.path.realpath(os.environ['ASE_HOME'])
+    scratch, local_home = config.get('gaussian', 'gauss_scratch'), os.path.realpath(config.get('ase', 'ase_home'))
 
     try:
         active_dir = os.getcwd().split(local_home)[1]
@@ -151,7 +155,10 @@ def gen_fchks(list_mols):
 
 
 def get_active_dirs():
-    scratch, home, local_home = os.environ['GAUSS_SCRATCH'], os.environ['GAUSS_HOME'], os.path.realpath(os.environ['ASE_HOME'])
+    #scratch, home, local_home = os.environ['GAUSS_SCRATCH'], os.environ['GAUSS_HOME'], os.path.realpath(os.environ['ASE_HOME'])
+    scratch = config.get('gaussian', 'gauss_scratch')
+    home = config.get('gaussian', 'gauss_home')
+    local_home = os.path.realpath(config.get('ase', 'ase_home'))
 
     try:
         active_dir = os.getcwd().split(local_home)[1]
@@ -231,10 +238,12 @@ def check_calcs_v2(list_mols, data_file="", max_restart=False, depth='medium', f
 def check_calcs(list_mols, max_restart=False, depth='medium', sort=False, frc=False, ):
     """if output file not present copies the output from the server's scratch dir to the working dir, if data_file given data is extracted from output files and saved to the data_file
     the local version of the output files are then deleted"""
-    import gaussian_job_manager
+    from gausspy import gaussian_job_manager
     from gausspy import oniom_utils
     from gausspy.gaussian_job_manager import server_files_equal_v2
-    scratch, local_home = os.environ['GAUSS_SCRATCH'], os.path.realpath(os.environ['ASE_HOME'])
+    #scratch, local_home = os.environ['GAUSS_SCRATCH'], os.path.realpath(os.environ['ASE_HOME'])
+    scratch = config.get('gaussian', 'gauss_scratch')
+    local_home = os.path.realpath(config.get('ase', 'ase_home'))
 
     try:
         active_dir = os.getcwd().split(local_home)[1]
@@ -356,8 +365,11 @@ def get_oniom_stable_calcs(mol):
     return comps
 
 def get_equiv_scratch_dir():
-    scratch = os.environ['GAUSS_SCRATCH']
-    local_home = os.path.realpath(os.environ['ASE_HOME'])
+    #scratch = os.environ['GAUSS_SCRATCH']
+    #local_home = os.path.realpath(os.environ['ASE_HOME'])
+
+    scratch = config.get('gaussian', 'gauss_scratch')
+    local_home = os.path.realpath(config.get('ase', 'ase_home'))
 
     try:
         active_dir = os.getcwd().split(local_home)[1]
@@ -368,8 +380,11 @@ def get_equiv_scratch_dir():
     return scratch_dir
 
 def get_equiv_home_dir():
-    home = os.environ['GAUSS_HOME']
-    local_home = os.path.realpath(os.environ['ASE_HOME'])
+    #home = os.environ['GAUSS_HOME']
+    #local_home = os.path.realpath(os.environ['ASE_HOME'])
+
+    home = config.get('gaussian', 'gauss_home')
+    local_home = os.path.realpath(config.get('ase', 'ase_home'))
 
     try:
         active_dir = os.getcwd().split(local_home)[1]
@@ -381,7 +396,8 @@ def get_equiv_home_dir():
     return home_dir
 
 def scratch_cp(file1, file2):
-    serv = os.environ['GAUSS_HOST']
+    #serv = os.environ['GAUSS_HOST']
+    serv = config.get('gaussian', 'gauss_host')
     scratch_dir = get_equiv_scratch_dir()
     exitcode = os.system("ssh " + serv + " 'cp " + scratch_dir + "{f1} ".format(f1=file1) + scratch_dir + "/" + "{f2}'".format(f2=file2))
 
@@ -392,7 +408,8 @@ def scratch_cp(file1, file2):
 
 def kill_mol(mol):
 
-    serv = os.environ['GAUSS_HOST']
+    #serv = os.environ['GAUSS_HOST']
+    serv = config.get('gaussian', 'gauss_host')
 
     scratch_dir = get_equiv_scratch_dir()
     home_dir = get_equiv_home_dir()
@@ -923,7 +940,8 @@ def cone_select(ase_mol, start_ind=None, start=None, min_radius=None, max_radius
 
 
 def get_active_path():
-    local_home = os.path.realpath(os.environ['ASE_HOME'])
+    #local_home = os.path.realpath(os.environ['ASE_HOME'])
+    local_home = os.path.realpath(config.get('ase', 'ase_home'))
 
     try:
         path = os.getcwd().split(local_home)[1]
@@ -958,8 +976,9 @@ def run_on_server(func_master, *args, **kwargs):
     with open(name + '.pkl', 'w') as f:
         pickle.dump([func_obj, args, kwargs], f)
 
-    serv_home = os.environ['GAUSS_HOME']
+    #serv_home = os.environ['GAUSS_HOME']
     #serv_work = os.environ['GAUSS_SCRATCH']
+    serv_home = config.get('gaussian', 'gauss_home')
     path = serv_home + get_active_path() + '/'
     #path = serv_work + get_active_path() + '/'
 
