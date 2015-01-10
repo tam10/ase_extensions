@@ -7,7 +7,7 @@ import os
 import molmod
 import pickle
 import ConfigParser
-from pbs_util import pbs
+from ASE_extensions import remote
 from copy import deepcopy
 from cc_utils.general_utils import plaintext2html
 
@@ -82,7 +82,7 @@ def get_latest_restart_name(file_n, ssh=None):
     """get's the file name of the final restarted calculation from the server"""
     ssh_created = False
     if not ssh:
-        ssh = pbs.connect_server(ssh=True)
+        ssh = remote.connect_server(ssh=True)
         ssh_created = True
 
     i,o,e = ssh.exec_command('ls {fn}_restart_{{?,??}}.log'.format(fn=file_n.replace('.log', '')))
@@ -103,7 +103,7 @@ def gen_fchk(mol_nm, ssh=False):
     assumes chk point file exists in the scratch directory"""
     ssh_created = False
     if not ssh:
-        ssh = pbs.connect_server(ssh=True)
+        ssh = remote.connect_server(ssh=True)
         ssh_created = True
 
     i,o,e = ssh.exec_command('/home/gaussian-devel/gaussiandvh13_pgi_118/gdv/formchk {fn}.chk {fn}.fchk'.format(fn=mol_nm))
@@ -147,7 +147,7 @@ def gen_fchks(list_mols):
     home_files = [mol.calc.label for mol in list_mols]
     serv_files = [scratch_dir + '/' + fn for fn in home_files]
 
-    ssh = pbs.connect_server(ssh=True)
+    ssh = remote.connect_server(ssh=True)
     fchk_out = [gen_fchk(serv_f, ssh) for serv_f in serv_files]
     ssh.close()
 
@@ -261,7 +261,7 @@ def check_calcs(list_mols, max_restart=False, depth='medium', sort=False, frc=Fa
     serv_files = [scratch_dir + '/' + fn for fn in home_files]
 
     if max_restart:
-        ssh = pbs.connect_server(ssh=True)
+        ssh = remote.connect_server(ssh=True)
         serv_files = [get_latest_restart_name(file_n, ssh) for file_n in serv_files]
         home_files = [sfn.replace(scratch_dir + '/', '') for sfn in serv_files]
         ssh.close()
@@ -328,7 +328,7 @@ def move_calc_files(ase_obj, new_label):
 
     home_exts, scratch_exts = ['.com'], ['.log', '.chk', '.fchk']
 
-    ssh = pbs.connect_server(ssh=True)
+    ssh = remote.connect_server(ssh=True)
 
     commands = []
     for ext in home_exts:
@@ -1005,4 +1005,4 @@ def run_on_server(func_master, *args, **kwargs):
     with open(name + '_job_script.sh', 'w') as f:
         f.write(script)
 
-    return pbs.qsub(os.getcwd() + '/' + name + '_job_script.sh', extra_files=[name + '.pkl'])
+    return remote.qsub(os.getcwd() + '/' + name + '_job_script.sh', extra_files=[name + '.pkl'])
