@@ -181,17 +181,15 @@ def qsub(script_filename, verbose=False, extra_files=None):
     if not extra_files:
         extra_files = []
 
-    local_home = config.get('ase', 'ase_home')
+    local_home = os.path.realpath(config.get('ase', 'ase_home'))
     serv_home = config.get('gaussian', 'gauss_home')
-    #local_home = os.environ['ASE_HOME']
-    #serv_home = os.environ['GAUSS_HOME']
 
     script_filename = os.path.abspath(script_filename)
     try:
         r_script_loc = script_filename.split(local_home)[1]
         remote_path = os.path.dirname(r_script_loc)
     except IndexError:
-        raise RuntimeError('Not running from within ASE_HOME')
+        raise RuntimeError('Not running from within ase_home directory')
 
     ssh, sftp = connect_server(ssh=True,sftp=True)
     sftp.put(script_filename, serv_home + '/' + r_script_loc)

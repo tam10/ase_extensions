@@ -7,9 +7,9 @@ import os
 import molmod
 import pickle
 import ConfigParser
-from ASE_extensions import remote
+import remote
 from copy import deepcopy
-from cc_utils.general_utils import plaintext2html
+from .shared import plaintext2html
 
 config = ConfigParser.RawConfigParser()
 config.read(os.path.expanduser('~/.cc_notebook.ini'))
@@ -940,13 +940,12 @@ def cone_select(ase_mol, start_ind=None, start=None, min_radius=None, max_radius
 
 
 def get_active_path():
-    #local_home = os.path.realpath(os.environ['ASE_HOME'])
     local_home = os.path.realpath(config.get('ase', 'ase_home'))
 
     try:
         path = os.getcwd().split(local_home)[1]
     except IndexError:
-        raise RuntimeError('Not running from within ASE_HOME')
+        raise RuntimeError('Not running from within ase_home directory')
     return path
 
 
@@ -976,10 +975,9 @@ def run_on_server(func_master, *args, **kwargs):
     with open(name + '.pkl', 'w') as f:
         pickle.dump([func_obj, args, kwargs], f)
 
-    #serv_home = os.environ['GAUSS_HOME']
-    #serv_work = os.environ['GAUSS_SCRATCH']
     serv_home = config.get('gaussian', 'gauss_home')
     path = serv_home + get_active_path() + '/'
+    #serv_work = config.get('gaussian', 'gauss_scratch')
     #path = serv_work + get_active_path() + '/'
 
     #gaussian uses GAUSS_SCRDIR to set the running directory, since we move to the home dir to run ase
