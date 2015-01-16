@@ -17,5 +17,4 @@ requirements:
     - numpy
     - ase
     - molmod
-    - cc-utils
     - paramiiko
