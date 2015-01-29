@@ -6,7 +6,7 @@ source:
   git_url: https://github.com/Clyde-fare/ase_extensions.git
 
 build:
-  number: 0
+  number: 1
 
 requirements:
   build:
