@@ -304,11 +304,11 @@ def check_calcs(list_mols, max_restart=False, depth='medium', sort=False, frc=Fa
             mol.calc.components = oniom_utils.oniom_comp_calcs(init_mol)
             check_calcs(mol.calc.components, depth=depth, max_restart=True, frc=frc)
 
-    try:
-        for mol in list_mols:
-            mol.calc.read(mol)
-    except (AttributeError, KeyError):
-        pass
+    for mol in list_mols:
+        try:
+            mol.calc.read()
+        except (AttributeError, KeyError):
+            pass
 
     if calcs_complete(list_mols):
         return "Calculations complete"
