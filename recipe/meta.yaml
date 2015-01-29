@@ -11,10 +11,11 @@ build:
 requirements:
   build:
     - python
+    - setuptools
 
   run:
     - python
     - numpy
     - ase
     - molmod
-    - paramiiko
+    - paramiko
