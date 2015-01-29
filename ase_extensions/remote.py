@@ -6,11 +6,6 @@ import os
 import time
 import uuid
 
-config = ConfigParser.RawConfigParser()
-config.read(os.path.expanduser('~/.cc_notebook.ini'))
-
-user = config.get('pbs', 'user')
-server = config.get('pbs', 'server')
 
 class PBSUtilError(Exception): pass
 class PBSUtilQStatError(PBSUtilError): pass
@@ -21,6 +16,16 @@ qstat_c = '/opt/pbs/default/bin/qstat '
 qdel_c = '/opt/pbs/default/bin/qdel '
 qsub_c = '/opt/pbs/default/bin/qsub '
 
+try:
+    config = ConfigParser.RawConfigParser()
+    config.read(os.path.expanduser('~/.cc_notebook.ini'))
+
+    user = config.get('pbs', 'user')
+    server = config.get('pbs', 'server')
+
+except ConfigParser.NoSectionError:
+    config, user, server = None, None, None
+    print('\nNo PBS details missing from ~/.cc_notebook.ini. Remote calculations disabled')
 
 def connect_server(usrname=user, servname=server, ssh=True, sftp=False):
     ssh_serv = paramiko.SSHClient()
