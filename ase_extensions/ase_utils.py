@@ -36,7 +36,7 @@ config.read(os.path.expanduser('~/.cc_notebook.ini'))
 
 def view_avo(atoms):
     from ase.visualize import view
-    if atoms._calc and atoms.calc.__module__ == 'ase.calculators.gaussian':
+    if atoms._calc and atoms.calc.__module__ == 'gausspy.gaussian':
         os.system("avogadro {f}".format(f=atoms.calc.label + '.log'))
     else:
         print('Viewing xyz file')
@@ -171,7 +171,7 @@ def get_active_dirs():
 
 
 def check_calcs_v2(list_mols, data_file="", max_restart=False, depth='medium', frc=False):
-    """if log/fchk file data on server differes from saved data,extract data and save"""
+    """if log/fchk file data on server differ from saved data,extract data and save"""
     import warnings
     from gausspy.gaussian_job_manager import server_data_unequal
     from gausspy.data_extract_utils import latest_restarts, import_moldata, load_from_server
@@ -235,7 +235,7 @@ def check_calcs_v2(list_mols, data_file="", max_restart=False, depth='medium', f
 
     return list_mols
 
-def check_calcs(list_mols, max_restart=False, depth='medium', sort=False, frc=False, ):
+def check_calcs(list_mols, max_restart=False, depth='medium', sort=False, frc=False, wait=False):
     """if output file not present copies the output from the server's scratch dir to the working dir, if data_file given data is extracted from output files and saved to the data_file
     the local version of the output files are then deleted"""
     from gausspy import gaussian_job_manager
@@ -318,6 +318,12 @@ def check_calcs(list_mols, max_restart=False, depth='medium', sort=False, frc=Fa
     if sort:
         #sort by calculation status
         incomp_calcs.sort(key=lambda e: e.calc.status)
+
+    if wait:
+        while([m for m in list_mols if m.calc.active]):
+            time.sleep(15)
+
+        check_calcs(list_mols=list_mols, max_restart=max_restart, depth=depth, sort=sort, frc=frc, wait=wait)
 
     return incomp_calcs
 
