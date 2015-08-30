@@ -45,12 +45,14 @@ def connect_server(usrname=user, servname=server, ssh=True, sftp=False):
 class JobStatus:
 
     def __init__(self, id, state, name=None, elapsed_time=None,
-                 username=None):
+                 username=None, queue=None, nodes=None):
         self.id = id
         self.state = state
         self.name = name
         self.elapsed_time = elapsed_time
         self.username = username
+        self.queue = queue
+        self.nodes = nodes
 
     def __str__(self):
         return '%10s %20s         %s   %s' % (self.id, self.name, self.state, self.elapsed_time)
@@ -77,8 +79,10 @@ def parse_qstat_plain_output(output_lines):
         record_job_id = parse_qsub_output(job_record[0])[0]
         record_job_state = job_record[4]
         name = job_record[1]
+        queue = job_record[2]
+        nodes = job_record[6]
         elapsed_time = job_record[3]
-        job_statuses.append(JobStatus(record_job_id, record_job_state, name=name, elapsed_time=elapsed_time))
+        job_statuses.append(JobStatus(record_job_id, record_job_state, name=name, elapsed_time=elapsed_time, queue=queue, nodes=nodes))
 
     return job_statuses
 
@@ -99,10 +103,12 @@ def parse_qstat_all_output(output_lines):
         record_job_id = parse_qsub_output(job_record[0])[0]
         record_job_state = job_record[9]
         name = job_record[3]
+        queue = job_record[2]
+        nodes = job_record[6]
         elapsed_time = job_record[10]
         username = job_record[1]
         job_statuses.append(JobStatus(record_job_id, record_job_state, name=name, elapsed_time=elapsed_time,
-                                      username=username))
+                                      username=username, queue=queue, nodes=nodes))
 
     return job_statuses
 
