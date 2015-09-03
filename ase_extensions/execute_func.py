@@ -3,7 +3,7 @@ __author__ = 'clyde'
 import pickle
 import sys
 import ase
-
+from optparse import OptionParser
 
 def _run(func_fn):
     """Executes pickled function/the calculator of an ASE Atoms object using args/kwargs from pickled args/kwargs files"""
@@ -16,6 +16,22 @@ def _run(func_fn):
         func.calc.start(*args, **kwargs)
     else:
         func(*args, **kwargs)
+
+def execute():
+    """Exit point allowing running of jobs/functions from pickled objects"""
+
+    p = OptionParser(
+        usage="usage: %prog my_pickle_obj.pkl",
+        description="Execute pickled objects containing calculations.")
+
+    opts, args = p.parse_args()
+
+    if len(args) != 1:
+        p.error('Requires 1 argument: the name of the pickled file to execute')
+
+    fn = args[0]
+
+    _run(fn)
 
 if __name__ == '__main__':
     args = sys.argv[1:]

@@ -989,7 +989,8 @@ def run_on_server(func_master, *args, **kwargs):
     #gaussian uses GAUSS_SCRDIR to set the running directory, since we move to the home dir to run ase
     #we need to set this shell var to the initial location in /tmp that qsub assigns us otherwise Gaussian
     #ends up running out of home and the readwrite files mean we quickly go over our disk quota
-    exec_command = 'export GAUSS_SCRDIR=`pwd`;cd {pth}; $WORK/bin/execute_func.py {f_pckl}'.format(
+    #exec_command = 'export GAUSS_SCRDIR=`pwd`;cd {pth}; $WORK/bin/execute_func.py {f_pckl}'.format(
+    exec_command = 'export GAUSS_SCRDIR=`pwd`;cd {pth}; execute_calc {f_pckl}'.format(
         pth=path,
         f_pckl=path + name + '.pkl')
 
