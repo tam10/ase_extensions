@@ -5,7 +5,7 @@ import numpy as np
 import re
 import os
 import molmod
-import pickle
+import dill
 import ConfigParser
 import remote
 from copy import deepcopy
@@ -979,7 +979,7 @@ def run_on_server(func_master, *args, **kwargs):
     name += '_' + str(uuid.uuid1())
 
     with open(name + '.pkl', 'w') as f:
-        pickle.dump([func_obj, args, kwargs], f)
+        dill.dump([func_obj, args, kwargs], f)
 
     serv_home = config.get('gaussian', 'gauss_home')
     path = serv_home + get_active_path() + '/'
