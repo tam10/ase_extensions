@@ -978,6 +978,8 @@ def run_on_server(func_master, *args, **kwargs):
 
     name += '_' + str(uuid.uuid1())
 
+    dill.dump_session(name + '_session.pkl')
+
     with open(name + '.pkl', 'w') as f:
         dill.dump([func_obj, args, kwargs], f)
 
@@ -1010,4 +1012,5 @@ def run_on_server(func_master, *args, **kwargs):
     with open(name + '_job_script.sh', 'w') as f:
         f.write(script)
 
-    return remote.qsub(os.getcwd() + '/' + name + '_job_script.sh', extra_files=[name + '.pkl'])
+    return remote.qsub(os.getcwd() + '/' + name + '_job_script.sh', extra_files=[name + '.pkl',
+                                                                                 name + '_session.pkl'])

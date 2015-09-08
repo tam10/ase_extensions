@@ -2,15 +2,25 @@ __author__ = 'clyde'
 
 import dill
 import sys
-import ase
 from optparse import OptionParser
+
+import ase
+import gausspy
 
 def _run(func_fn):
     """Executes dill-ed function/the calculator of an ASE Atoms object using args/kwargs from dill-ed args/kwargs files"""
+
+    func_session_fn = func_fn.replace('.pkl', '_session.pkl')
+
+    try:
+        dill.load_session(func_ses_f)
+    except IOError:
+        pass
+
     with open(func_fn) as func_f:
         func, args, kwargs = dill.load(func_f)
 
-    if func.__class__ == ase.calculators.gaussian.Gaussian:
+    if func.__class__ == gausspy.gaussian.Gaussian:
         func.start(*args, **kwargs)
     elif func.__class__ == ase.atoms.Atoms:
         func.calc.start(*args, **kwargs)
