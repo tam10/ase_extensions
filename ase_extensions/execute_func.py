@@ -10,10 +10,10 @@ import gausspy
 def _run(func_fn):
     """Executes dill-ed function/the calculator of an ASE Atoms object using args/kwargs from dill-ed args/kwargs files"""
 
-    func_session_fn = func_fn.replace('.pkl', '_session.pkl')
+    session_fn = func_fn.replace('.pkl', '_session.pkl')
 
     try:
-        dill.load_session(func_ses_f)
+        dill.load_session(session_fn)
     except IOError:
         pass
 
