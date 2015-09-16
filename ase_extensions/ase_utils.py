@@ -978,7 +978,16 @@ def run_on_server(func_master, *args, **kwargs):
 
     name += '_' + str(uuid.uuid1())
 
-    dill.dump_session(name + '_session.pkl')
+    
+    #this means functions that actually have an inc_session keyword argument
+    #will have the value stripped out (I'm hoping we don't come across any)
+    try:
+        inc_session = kwargs.pop('inc_session')
+    except KeyError:
+        inc_session=False
+
+    if inc_session:
+        dill.dump_session(name + '_session.pkl')
 
     with open(name + '.pkl', 'w') as f:
         dill.dump([func_obj, args, kwargs], f)
@@ -1012,5 +1021,9 @@ def run_on_server(func_master, *args, **kwargs):
     with open(name + '_job_script.sh', 'w') as f:
         f.write(script)
 
-    return remote.qsub(os.getcwd() + '/' + name + '_job_script.sh', extra_files=[name + '.pkl',
-                                                                                 name + '_session.pkl'])
+    if inc_session:
+        extra_files = [name + '.pkl', name + '_session.pkl']
+    else:
+        extra_files = [name + '.pkl']
+
+    return remote.qsub(os.getcwd() + '/' + name + '_job_script.sh', extra_files=extra_files)
