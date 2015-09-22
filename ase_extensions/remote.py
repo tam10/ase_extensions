@@ -341,3 +341,36 @@ def strip_pbs_ids(source):
     """Return a list of the pbs job ids contained in source."""
     signature = get_signature()
     return [qsub_output.split('.')[0] for qsub_output in source.splitlines() if qsub_output.find(signature) > 0]
+
+
+def get_queue(queue_limits):
+    """
+    Custom queue generator to avoid overloading the queue. 
+
+    Yields a queue where the number of jobs currently queued on the cluster is less
+    than the limits specified in queue_limits, if no such queue is available sleeps
+    until one is.
+    
+    Accepts a dictionary queue_limits. 
+    Keys represent the queues to use and values the maximum number of jobs allowed 
+    to be queued at any one time.
+
+    An empty string key represents the default queue, all jobs running that are not 
+    running on the queues specified in queue_limits will assumed to be running on
+    the default queue.
+    """
+
+    queues, limits = queue_limits.items()
+    queues.pop('')
+
+    while(True):    
+        
+        queued_jobs = qstat_plain()
+        jobs = {queue : [j for j in queued_jobs if j.queue == queue] for queue in queues}        
+        jobs[''] = [j for j in queued_jobs if j.queue not in queues]
+
+        for queue in queues:
+            if len(jobs[queue]) < queue_limits[queue]:
+                yield queue
+        else:
+            time.sleep(30)
