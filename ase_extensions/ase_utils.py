@@ -306,6 +306,7 @@ def check_calcs(list_mols, max_restart=False, depth='medium', sort=False, frc=Fa
 
     for mol in list_mols:
         try:
+            mol.calc.reset_cached_data()
             mol.calc.read()
         except (AttributeError, KeyError):
             pass
