@@ -12,9 +12,13 @@ class PBSUtilQStatError(PBSUtilError): pass
 class PBSUtilQSubError(PBSUtilError): pass
 class PBSUtilWaitError(PBSUtilError): pass
 
-qstat_c = '/opt/pbs/default/bin/qstat '
-qdel_c = '/opt/pbs/default/bin/qdel '
-qsub_c = '/opt/pbs/default/bin/qsub '
+#qstat_c = '/opt/pbs/default/bin/qstat '
+#qdel_c = '/opt/pbs/default/bin/qdel '
+#qsub_c = '/opt/pbs/default/bin/qsub '
+
+qstat_c = 'qstat'
+qdel_c = 'qdel'
+qsub_c = 'qsub'
 
 try:
     config = ConfigParser.RawConfigParser()
