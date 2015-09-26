@@ -12,13 +12,9 @@ class PBSUtilQStatError(PBSUtilError): pass
 class PBSUtilQSubError(PBSUtilError): pass
 class PBSUtilWaitError(PBSUtilError): pass
 
-#qstat_c = '/opt/pbs/default/bin/qstat '
-#qdel_c = '/opt/pbs/default/bin/qdel '
-#qsub_c = '/opt/pbs/default/bin/qsub '
-
-qstat_c = 'qstat'
-qdel_c = 'qdel'
-qsub_c = 'qsub'
+qstat_c = 'source /home/$USER/.bashrc; qstat'
+qdel_c = 'source /home/$USER/.bashrc; qdel'
+qsub_c = 'source /home/$USER/.bashrc; qsub'
 
 try:
     config = ConfigParser.RawConfigParser()
@@ -190,7 +186,7 @@ def parse_qsub_output(output):
         raise PBSUtilQSubError('Unable to parse qsub output: "%s"' % output)
 
 
-def qsub(script_filename, verbose=False, extra_files=None):
+def qsub(script_filename, verbose=False, extra_files=None, extra_commands=''):
     """Submit the given pbs script, returning the jobid."""
 
     if not extra_files:
@@ -208,6 +204,9 @@ def qsub(script_filename, verbose=False, extra_files=None):
 
     ssh, sftp = connect_server(ssh=True,sftp=True)
     sftp.put(script_filename, serv_home + '/' + r_script_loc)
+
+    #make sure server path exists
+    ssh.exec_command('mkdir -p {pth}'.format(pth=serv_home + remote_path)
 
     #extra files we are also copying into the same directory
     for file_n in extra_files:
