@@ -203,10 +203,12 @@ def qsub(script_filename, verbose=False, extra_files=None, extra_commands=''):
         raise RuntimeError('Not running from within ase_home directory')
 
     ssh, sftp = connect_server(ssh=True,sftp=True)
+ 
+    #make sure server path exists on the server
+    i,o,e = ssh.exec_command('mkdir -p {pth};'.format(pth=serv_home + remote_path))
+    o.readlines() + e.readlines()
+    
     sftp.put(script_filename, serv_home + '/' + r_script_loc)
-
-    #make sure server path exists
-    ssh.exec_command('mkdir -p {pth}'.format(pth=serv_home + remote_path)
 
     #extra files we are also copying into the same directory
     for file_n in extra_files:
