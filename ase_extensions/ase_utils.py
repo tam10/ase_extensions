@@ -998,8 +998,10 @@ def run_on_server(func_master, *args, **kwargs):
     #serv_work = config.get('gaussian', 'gauss_scratch')
     #path = serv_work + get_active_path() + '/'
 
-    #gaussian uses GAUSS_SCRDIR to set the running directory, since we move to the home dir to run ase
-    #we need to set this shell var to the initial location in /tmp that qsub assigns us otherwise Gaussian
+    #gaussian uses GAUSS_SCRDIR to set the running directory, as we move to the home dir to run asei
+    #we need to set this shell var to the initial location in /tmp that qsub (on cx1, maia doesn't do 
+    #auto-assigment as we have to worry about it ourselves, however the submission script over writes GAUSS_SCRDIR
+    #so all is well) assigns us otherwise Gaussian
     #ends up running out of home and the readwrite files mean we quickly go over our disk quota
     #exec_command = 'export GAUSS_SCRDIR=`pwd`;cd {pth}; $WORK/bin/execute_func.py {f_pckl}'.format(
     exec_command = 'export GAUSS_SCRDIR=`pwd`;cd {pth}; execute_calc {f_pckl}'.format(
@@ -1027,4 +1029,13 @@ def run_on_server(func_master, *args, **kwargs):
     else:
         extra_files = [name + '.pkl']
 
-    return remote.qsub(os.getcwd() + '/' + name + '_job_script.sh', extra_files=extra_files)
+    submission = remote.qsub(os.getcwd() + '/' + name + '_job_script.sh', extra_files=extra_files)
+
+    os.remove(name + '.pkl')
+
+    try:
+        os.remove(name + '_session.pkl')
+    except OSError:
+        pass
+
+    return submission
