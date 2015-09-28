@@ -995,16 +995,9 @@ def run_on_server(func_master, *args, **kwargs):
 
     serv_home = config.get('gaussian', 'gauss_home')
     path = serv_home + get_active_path() + '/'
-    #serv_work = config.get('gaussian', 'gauss_scratch')
-    #path = serv_work + get_active_path() + '/'
 
-    #gaussian uses GAUSS_SCRDIR to set the running directory, as we move to the home dir to run asei
-    #we need to set this shell var to the initial location in /tmp that qsub (on cx1, maia doesn't do 
-    #auto-assigment as we have to worry about it ourselves, however the submission script over writes GAUSS_SCRDIR
-    #so all is well) assigns us otherwise Gaussian
     #ends up running out of home and the readwrite files mean we quickly go over our disk quota
-    #exec_command = 'export GAUSS_SCRDIR=`pwd`;cd {pth}; $WORK/bin/execute_func.py {f_pckl}'.format(
-    exec_command = 'export GAUSS_SCRDIR=`pwd`;cd {pth}; execute_calc {f_pckl}'.format(
+    exec_command = 'execute_calc {pth}{f_pckl}'.format(
         pth=path,
         f_pckl=path + name + '.pkl')
 
