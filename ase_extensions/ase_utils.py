@@ -1005,13 +1005,13 @@ def run_on_server(func_master, *args, **kwargs):
 
     serv_home = config.get('gaussian', 'gauss_home')
     path = os.path.join(serv_home + get_active_path(), '')
-    #serv_work = config.get('gaussian', 'gauss_scratch')
-    #scratch_path = os.path.join(serv_work + get_active_path(), '')
+    serv_work = config.get('gaussian', 'gauss_scratch')
+    scratch_path = os.path.join(serv_work + get_active_path(), '')
     #if we have set the ASE and Gaussian home/work directories to nothing. I.e. we are running on the node
     #then the only way of recovering the original directories is to use the PBS shell variables that contain the directory
     #that the job was submitted from (which is the correct home directory).
 
-    scratch_path = os.environ['PBS_O_WORKDIR '].replace('/home','/work')
+    #scratch_path = os.environ['PBS_O_WORKDIR '].replace('/home','/work')
 
     exec_command = 'execute_calc {f_pckl};'.format(
         pth=path,
