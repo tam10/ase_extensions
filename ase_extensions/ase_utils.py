@@ -987,6 +987,16 @@ def run_on_server(func_master, *args, **kwargs):
     except KeyError:
         inc_session=False
 
+    try:
+        savefiles = kwargs.pop('savefiles')
+    except KeyError:
+        savefiles = ''
+
+    try:
+        compress = kwargs.pop('compress')
+    except KeyError:
+        compress = False
+    
     if inc_session:
         dill.dump_session(name + '_session.pkl')
 
@@ -994,19 +1004,27 @@ def run_on_server(func_master, *args, **kwargs):
         dill.dump([func_obj, args, kwargs], f)
 
     serv_home = config.get('gaussian', 'gauss_home')
-    path = serv_home + get_active_path() + '/'
+    path = os.path.join(serv_home + get_active_path(), '')
     #serv_work = config.get('gaussian', 'gauss_scratch')
-    #path = serv_work + get_active_path() + '/'
+    #scratch_path = os.path.join(serv_work + get_active_path(), '')
+    #if we have set the ASE and Gaussian home/work directories to nothing. I.e. we are running on the node
+    #then the only way of recovering the original directories is to use the PBS shell variables that contain the directory
+    #that the job was submitted from (which is the correct home directory).
 
-    #gaussian uses GAUSS_SCRDIR to set the running directory, as we move to the home dir to run asei
-    #we need to set this shell var to the initial location in /tmp that qsub (on cx1, maia doesn't do 
-    #auto-assigment as we have to worry about it ourselves, however the submission script over writes GAUSS_SCRDIR
-    #so all is well) assigns us otherwise Gaussian
-    #ends up running out of home and the readwrite files mean we quickly go over our disk quota
-    #exec_command = 'export GAUSS_SCRDIR=`pwd`;cd {pth}; $WORK/bin/execute_func.py {f_pckl}'.format(
-    exec_command = 'export GAUSS_SCRDIR=`pwd`;cd {pth}; execute_calc {f_pckl}'.format(
+    scratch_path = os.environ['PBS_O_WORKDIR '].replace('/home','/work')
+
+    exec_command = 'execute_calc {f_pckl};'.format(
         pth=path,
         f_pckl=path + name + '.pkl')
+
+    if compress and savefiles:
+        exec_command += 'mkdir -p {scratch};'.format(scratch=scratch_path)
+        exec_command += 'tar -cvjf {n}.tar.bz2 {f};'.format(n=name, f=savefiles)
+        exec_command += 'cp {n}.tar.bz2 {scratch};'.format(n=name, scratch=scratch_path)
+    elif savefiles:
+        exec_command += 'mkdir -p {scratch};'.format(scratch=scratch_path)
+        #exec_command += 'find . -maxdepth 1 ! -iregex "{r}" -exec cp -r {} {scratch} \;'.format(r=savefiles, scratch=scratch_path)
+        exec_command += 'cp {f} {scratch};'.format(f=savefiles, scratch=scratch_path)
 
     if not job_obj:
         try:
