@@ -198,14 +198,16 @@ def qstat_queue(queue):
         return job_stats  
 
     line = output_lines[5] 
-    q,m,ct,wt,n,r,qd,lm,s = line.split()
+    q,m,ct,wt,n,r,qd,lm,s1,s2 = line.split()
     
+    s=' '.join([s1,s2])
+
     int_values = [m,r,qd]
     for i,v in enumerate(int_values):
         try:
             int_values[i] = int(v)
         except ValueError:
-            int_value[i] = None
+            int_values[i] = None
      
     return QueueStatus(id=q, running=int_values[1], queued=int_values[2], memory=int_values[0], 
                        time=ct, wall_time=wt, node=n, lm=lm, state=s)
