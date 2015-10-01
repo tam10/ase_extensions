@@ -57,6 +57,23 @@ class JobStatus:
     def __str__(self):
         return '%10s %20s         %s   %s' % (self.id, self.name, self.state, self.elapsed_time)
 
+class QueueStatus:
+
+    def __init__(self, id, running, queued, memory=None, time=None, 
+                 wall_time=None, node=None, lm=None, state=None):
+        self.id = id
+        self.running = running
+        self.queued = queued
+        self.memory = memory
+        self.time = time
+        self.wall_time = wall_time
+        self.node = node
+        self.lm = lm
+        self.state = state
+
+    def __str__(self):
+        return '%10s  R: %i  Q: %i  S: %s' % (self.id, self.running, self.queued, self.state)
+
 def call_qstat(args):
     """Execute qstat, and return output lines"""
     ssh = connect_server()
@@ -164,6 +181,35 @@ def qstat_user(user):
         record_job_state = job_record[9]
         job_stats.append(JobStatus(record_job_id, record_job_state, name=job_record[3], elapsed_time=job_record[10]))
     return job_stats
+
+def qstat_queue(queue):
+    """Return JobStatus object output by a qstat -q queue requrest..
+
+    The output for qstat is very different depending on the query, so
+    the different queries have been broken into distinct
+    functions.
+
+    """
+
+    job_stats = []
+
+    output_lines = call_qstat(['-q', queue])
+    if len(output_lines) < 4:
+        return job_stats  
+
+    line = output_lines[5] 
+    q,m,ct,wt,n,r,qd,lm,s = line.split()
+    
+    int_values = [m,r,qd]
+    for i,v in enumerate(int_values):
+        try:
+            int_values[i] = int(v)
+        except ValueError:
+            int_value[i] = None
+     
+    return QueueStatus(id=q, running=int_values[1], queued=int_values[2], memory=int_values[0], 
+                       time=ct, wall_time=wt, node=n, lm=lm, state=s)
+    
 
 def qstat(job_id=None, user=None):
     """Return JobStatus objects from output of qstat with desired options."""
