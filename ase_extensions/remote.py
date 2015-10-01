@@ -12,9 +12,9 @@ class PBSUtilQStatError(PBSUtilError): pass
 class PBSUtilQSubError(PBSUtilError): pass
 class PBSUtilWaitError(PBSUtilError): pass
 
-qstat_c = 'source /home/$USER/.bashrc; qstat'
-qdel_c = 'source /home/$USER/.bashrc; qdel'
-qsub_c = 'source /home/$USER/.bashrc; qsub'
+qstat_c = 'source /home/$USER/.bashrc; qstat '
+qdel_c = 'source /home/$USER/.bashrc; qdel '
+qsub_c = 'source /home/$USER/.bashrc; qsub '
 
 try:
     config = ConfigParser.RawConfigParser()
