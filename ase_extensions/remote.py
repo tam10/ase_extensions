@@ -15,6 +15,7 @@ class PBSUtilWaitError(PBSUtilError): pass
 qstat_c = 'source /home/$USER/.bashrc; qstat '
 qdel_c = 'source /home/$USER/.bashrc; qdel '
 qsub_c = 'source /home/$USER/.bashrc; qsub '
+qmove_c = 'source /home/$USER/.bashrc; qmove '
 
 try:
     config = ConfigParser.RawConfigParser()
@@ -303,6 +304,16 @@ def qdel(job_id):
     qdel_output = o.readlines() + e.readlines()
     ssh.close()
 
+def qmove(queue, job_id):
+    """Moves the given pbs jobid to the given queue."""
+    ssh = connect_server()
+    if isinstance(job_id, JobStatus):
+        i,o,e = ssh.exec_command(qmove_c + queue + ' ' + job_id.id)
+    else:
+        i,o,e = ssh.exec_command(qmove_c + queue + ' ' + job_id)
+
+    qmove_output = o.readlines() + e.readlines()
+    ssh.close()
 
 def temp_file_name(suffix):
     """Return a new temporary file name."""
