@@ -15,7 +15,7 @@ import random
 import string
 import warnings
 from IPython.display import display
-from IPython.html.widgets import FloatProgress, Text
+from IPython.html.widgets import FloatProgress
 
 try:
     from chemview import MolecularViewer, enable_notebook
@@ -25,7 +25,7 @@ except ImportError:
     
 class Atom(ae.Atom):   
     """Class for representing a single atom.
-
+    
     Parameters:
     
     symbol: str or int
@@ -396,7 +396,7 @@ class Atoms(ae.Atoms):
     def reorder_residues(self):
         resnums=self.get_resnums()
         temp=Atoms()
-        [[temp.append(self[i]) for i,a in enumerate(resnums) if a==r] for r in list(set(resnums))]
+        [[temp.append(self[i]) for i,a in enumerate(resnums) if a==r] for r in sorted(list(set(resnums)))]
         self.__init__(temp)
     
     def calculate_topology(self,names='pdbs'):
@@ -696,25 +696,19 @@ class Atoms(ae.Atoms):
         atoms=copy.deepcopy(self)
         atom_list=range(len(self))
         
-        if symbols      and not isinstance(symbols,list):       symbols     = [symbols]
-        if atom_types   and not isinstance(atom_types,list):    atom_types  = [atom_types]
-        if ambers       and not isinstance(ambers,list):        ambers      = [ambers]
-        if pdbs         and not isinstance(pdbs,list):          pdbs        = [pdbs]
-        if residues     and not isinstance(residues,list):      residues    = [residues]
-        if resnums      and not isinstance(resnums,list):       resnums     = [resnums]
-        if chains       and not isinstance(chains,list):        chains      = [chains]
-        if partial_pdbs and not isinstance(partial_pdbs,list):  partial_pdbs= [partial_pdbs]
-        if tags         and not isinstance(tags,list):          tags        = [tags]
-        if symbols:     atom_list= [i for i in atom_list if atoms[i].symbol     in symbols]
-        if atom_types:  atom_list= [i for i in atom_list if atoms[i].atom_type  in atom_types]
-        if ambers:      atom_list= [i for i in atom_list if atoms[i].amber      in ambers]
-        if pdbs:        atom_list= [i for i in atom_list if atoms[i].pdb        in pdbs]
-        if residues:    atom_list= [i for i in atom_list if atoms[i].residue    in residues]
-        if resnums:     atom_list= [i for i in atom_list if atoms[i].resnum     in resnums]
-        if chains:      atom_list= [i for i in atom_list if atoms[i].chain      in chains]
-        if tags:        atom_list= [i for i in atom_list if atoms[i].tag        in tags]
-        if partial_pdbs:atom_list= [i for i in atom_list if atoms[i].pdb and "".join(s for s in atoms[i].pdb if not s.isdigit())     in partial_pdbs]
-        atoms=atoms[atom_list]        
+        attr_dict={'symbol': symbols, 'atom_type':   atom_types,   'amber':  ambers,
+                   'pdb':    pdbs,    'residue':     residues,     'resnum': resnums,
+                   'chain':  chains,  'partial_pdb': partial_pdbs, 'tag':    tags}
+        
+        for key, value in attr_dict.iteritems():
+            if value is not None:
+                if not isinstance(value, list): value = [value]
+                if key == 'partial_pdb':
+                    atom_list = filter(lambda i: getattr(atoms[i],'pdb').translate(None,'1234567890') in set(value),atom_list)
+                else:
+                    atom_list = filter(lambda i: getattr(atoms[i],key) in set(value),atom_list)
+        
+        atoms = atoms[atom_list]
         if indices_in_tags: atoms.set_tags(atom_list)
         return self.__class__(atoms)
         
@@ -725,25 +719,19 @@ class Atoms(ae.Atoms):
         atoms=copy.deepcopy(self)
         atom_list=range(len(self))
         
-        if symbols      and not isinstance(symbols,list):       symbols     = [symbols]
-        if atom_types   and not isinstance(atom_types,list):    atom_types  = [atom_types]
-        if ambers       and not isinstance(ambers,list):        ambers      = [ambers]
-        if pdbs         and not isinstance(pdbs,list):          pdbs        = [pdbs]
-        if residues     and not isinstance(residues,list):      residues    = [residues]
-        if resnums      and not isinstance(resnums,list):       resnums     = [resnums]
-        if chains       and not isinstance(chains,list):        chains      = [chains]
-        if partial_pdbs and not isinstance(partial_pdbs,list):  partial_pdbs= [partial_pdbs]
-        if tags         and not isinstance(tags,list):          tags        = [tags]
-        if symbols:     atom_list= [i for i in atom_list if atoms[i].symbol     not in symbols]
-        if atom_types:  atom_list= [i for i in atom_list if atoms[i].atom_type  not in atom_types]
-        if ambers:      atom_list= [i for i in atom_list if atoms[i].amber      not in ambers]
-        if pdbs:        atom_list= [i for i in atom_list if atoms[i].pdb        not in pdbs]
-        if residues:    atom_list= [i for i in atom_list if atoms[i].residue    not in residues]
-        if resnums:     atom_list= [i for i in atom_list if atoms[i].resnum     not in resnums]
-        if chains:      atom_list= [i for i in atom_list if atoms[i].chain      not in chains]
-        if tags:        atom_list= [i for i in atom_list if atoms[i].tag        not in tags]
-        if partial_pdbs:atom_list= [i for i in atom_list if atoms[i].pdb and "".join(s for s in atoms[i].pdb if not s.isdigit()) not in partial_pdbs]
-        atoms=atoms[atom_list] 
+        attr_dict={'symbol': symbols, 'atom_type':   atom_types,   'amber':  ambers,
+                   'pdb':    pdbs,    'residue':     residues,     'resnum': resnums,
+                   'chain':  chains,  'partial_pdb': partial_pdbs, 'tag':    tags}
+        
+        for key, value in attr_dict.iteritems():
+            if value is not None:
+                if not isinstance(value, list): value = [value]
+                if key == 'partial_pdb':
+                    atom_list = filter(lambda i: getattr(atoms[i],'pdb').translate(None,'1234567890') not in set(value),atom_list)
+                else:
+                    atom_list = filter(lambda i: getattr(atoms[i],key) not in set(value),atom_list)
+        
+        atoms = atoms[atom_list]
         if indices_in_tags: atoms.set_tags(atom_list)
         return self.__class__(atoms)
         
