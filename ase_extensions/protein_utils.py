@@ -266,26 +266,26 @@ class Atoms(ae.Atoms):
         else:
             return np.zeros(len(self),dtype='S5')
             
-    def calculate_ambers_pdbs(self,calculate_ambers=True,calculate_pdbs=True,debug=False):
-        filename=self.info.get("name")
+    def calculate_ambers_pdbs(self, calculate_ambers=True, calculate_pdbs=True, debug=False):
+        filename = self.info.get("name")
         if not filename:
-            filename="".join(random.choice(string.ascii_lowercase+string.digits) for i in range(6))
-        dirname=filename+"_antechamber"+os.sep
-        orig=filename+'_orig.pdb'
-        new=filename+'_new.mol2'
+            filename = "".join(random.choice(string.ascii_lowercase + string.digits) for i in range(6))
+        dirname = filename + "_antechamber" + os.sep
+        orig = filename+'_orig.pdb'
+        new = filename+'_new.mol2'
         
         if not os.path.exists(dirname):
             os.mkdir(dirname)
             
         os.chdir(dirname)
-        temp_atoms=self.take()
+        temp_atoms = self.take()
         temp_atoms.write_pdb(orig)
-        os.system('antechamber -fi pdb -i {i} -fo mol2 -o {o} -at amber'.format(i=orig,o=new))
-        amber_pdb_atoms=read_mol2(new,atom_col_1='pdb',atom_col_2='amber')
+        os.system('antechamber -fi pdb -i {i} -fo mol2 -o {o} -at amber'.format(i = orig, o = new))
+        amber_pdb_atoms = read_mol2(new, atom_col_1 = 'pdb', atom_col_2 = 'amber')
         
         os.chdir("..")
         if not debug:
-            os.system("rm -r {d}".format(d=dirname))
+            os.system("rm -r {d}".format(d = dirname))
         
         if calculate_ambers:
             self.set_ambers(amber_pdb_atoms.get_ambers())
@@ -304,13 +304,13 @@ class Atoms(ae.Atoms):
         if 'pdbs' in self.arrays:
             return self.arrays['pdbs'].copy()
         else:
-            return np.zeros(len(self),dtype='S5')
+            return np.zeros(len(self),dtype = 'S5')
         
     def set_residues(self, residues=None):
         if residues is None:
             self.set_array('residues', None)
-        elif isinstance(residues,str):
-            arr = np.zeros(len(self),dtype='S5')
+        elif isinstance(residues, str):
+            arr = np.zeros(len(self), dtype = 'S5')
             arr.fill(residues)
             self.set_array('residues', arr, 'S5', arr.shape[1:])
         else:
@@ -321,13 +321,13 @@ class Atoms(ae.Atoms):
         if 'residues' in self.arrays:
             return self.arrays['residues'].copy()
         else:
-            return np.zeros(len(self),dtype='S5')
+            return np.zeros(len(self),dtype = 'S5')
         
     def set_resnums(self, resnums=None):
         if resnums is None:
             self.set_array('resnums', None)
-        elif isinstance(resnums,int):
-            arr = np.zeros(len(self),dtype=int)
+        elif isinstance(resnums, int):
+            arr = np.zeros(len(self), dtype = int)
             arr.fill(resnums)
             self.set_array('resnums', arr, int, arr.shape[1:])
         else:
@@ -338,7 +338,7 @@ class Atoms(ae.Atoms):
         if 'resnums' in self.arrays:
             return self.arrays['resnums'].copy()
         else:
-            return np.zeros(len(self),dtype=int)     
+            return np.zeros(len(self), dtype = int)     
         
     def set_chains(self, chains=None):
         if chains is None:
@@ -351,7 +351,7 @@ class Atoms(ae.Atoms):
         if 'chains' in self.arrays:
             return self.arrays['chains'].copy()
         else:
-            return np.zeros(len(self),dtype='S5')  
+            return np.zeros(len(self), dtype = 'S5')  
 
     def set_amber_charges(self, amber_charges=None):
         if amber_charges is None:
@@ -377,45 +377,47 @@ class Atoms(ae.Atoms):
         else:
             return np.zeros(len(self))
             
-    def merge_residues(self,residue_list,new_residue_name):
+    def merge_residues(self, residue_list, new_residue_name):
         """Joins a list of residues, renames and renumbers. Higher residues are renumbered."""
         for i,a in enumerate(self):
             if a.resnum in residue_list:
-                a.residue=new_residue_name
-                a.resnum=residue_list[0]
+                a.residue = new_residue_name
+                a.resnum = residue_list[0]
         self.reorder_residues()
         
     def renumber_residues(self):
         """Renumbers all residues starting from 1. Returns a dictionary with mappings."""
-        renumbered={b:i+1 for i,b in enumerate([a.resnum for i,a in enumerate(self) if self[i-1].resnum!=a.resnum or i==0])}
+        renumbered = {b: i + 1 for i, b in enumerate([a.resnum for i, a in enumerate(self) if self[i - 1].resnum != a.resnum or i == 0])}
         for atom in self:
-            atom.resnum=renumbered[atom.resnum]
-        self.residue_dict=None
+            atom.resnum = renumbered[atom.resnum]
+        self.residue_dict = None
         return renumbered
         
     def reorder_residues(self):
-        resnums=self.get_resnums()
-        temp=Atoms()
-        [[temp.append(self[i]) for i,a in enumerate(resnums) if a==r] for r in sorted(list(set(resnums)))]
+        info = copy.deepcopy(self.info)
+        resnums = self.get_resnums()
+        temp = Atoms()
+        [[temp.append(self[i]) for i,a in enumerate(resnums) if a == r] for r in sorted(list(set(resnums)))]
         self.__init__(temp)
+        self.info = info
     
-    def calculate_topology(self,names='pdbs'):
+    def calculate_topology(self, names='pdbs'):
         
-        self.topology["atom_types"]=self.get_chemical_symbols()
-        bonds=[tuple(b) for b in self.get_bonds()]
+        self.topology["atom_types"] = self.get_chemical_symbols()
+        bonds = [tuple(b) for b in self.get_bonds()]
         if bonds:
-            self.topology["bonds"]=bonds
-        if names=='pdbs':
-            atom_names=self.get_pdbs()
-        elif names=='ambers':
-            atom_names=self.get_ambers()
+            self.topology["bonds"] = bonds
+        if names == 'pdbs':
+            atom_names = self.get_pdbs()
+        elif names == 'ambers':
+            atom_names = self.get_ambers()
         else:
             raise RuntimeError("names not understood. Use 'pdbs' or 'ambers'")
         if any(atom_names):
-            self.topology["atom_names"]=atom_names
-        res_dict=self.get_residue_dict()
-        self.topology["residue_indices"]=[tuple([n for n in range(len(self)) if self[n].resnum==r]) for r in res_dict.keys()]
-        self.topology["residue_types"]=res_dict.values()
+            self.topology["atom_names"] = atom_names
+        res_dict = self.get_residue_dict()
+        self.topology["residue_indices"] = [tuple([n for n in range(len(self)) if self[n].resnum == r]) for r in res_dict.keys()]
+        self.topology["residue_types"] = res_dict.values()
         
     def get_topology(self):
         """Returns a dictionary for ChemView with the following keys:
@@ -432,7 +434,7 @@ class Atoms(ae.Atoms):
         return self.topology    
         
         
-    def expand_selection(self,current_selection=None,mode='bonds',expansion=1,inclusive=True):
+    def expand_selection(self, current_selection=None, mode='bonds', expansion=1, inclusive=True):
         """mode:
             'bonds':                Expand selection by {expansion (integer)} bonds
                 current_selection:  List of atom indices
@@ -445,27 +447,27 @@ class Atoms(ae.Atoms):
                 Returns:            List of residue numbers
         inclusive:          Also returns original atom indices/residue numbers"""
         
-        if mode=='resnums':
-            expanded_selection=copy.deepcopy(current_selection)
+        if mode == 'resnums':
+            expanded_selection = copy.deepcopy(current_selection)
             for i in range(expansion):
                 for j in copy.deepcopy(expanded_selection):
-                    expanded_selection+=(j-1 not in expanded_selection)*[j-1]
-                    expanded_selection+=( j  not in expanded_selection)*[ j ]
-                    expanded_selection+=(j+1 not in expanded_selection)*[j+1]
+                    expanded_selection += (j - 1 not in expanded_selection) * [j - 1]
+                    expanded_selection += (  j   not in expanded_selection) * [  j  ]
+                    expanded_selection += (j + 1 not in expanded_selection) * [j + 1]
             if inclusive:
                 return expanded_selection
             else:
-                expanded_selection=[r for r in expanded_selection if not r in current_selection]
+                expanded_selection = [r for r in expanded_selection if not r in current_selection]
                 return expanded_selection
         else:
             return ae.Atoms.expand_selection(self,
-                                            current_selection=current_selection,
-                                            mode=mode,
-                                            expansion=expansion,
-                                            inclusive=inclusive)
+                                            current_selection = current_selection,
+                                            mode = mode,
+                                            expansion = expansion,
+                                            inclusive = inclusive)
     def calculate_residue_dict(self):
-        resnums=list(set(self.get_resnums()))
-        self.residue_dict={resnum:self.take(resnums=resnum)[0].residue for resnum in resnums}
+        resnums = list(set(self.get_resnums()))
+        self.residue_dict = {resnum: self.take(resnums = resnum)[0].residue for resnum in resnums}
         
     def get_residue_dict(self):
         """Returns a dictionary of mappings between residue numbers and residue names."""
@@ -476,93 +478,144 @@ class Atoms(ae.Atoms):
     def get_ace_cap_sites(self, force=False):
         """Returns a list of atom indices whose PDB names are 'N' and do not have a neighbouring 'C'.
         force=True should be used if the backbone in a residue to cap is longer than 3 atoms (merged)"""
-        neighbours=self.get_neighbours()
+        neighbours = self.get_neighbours()
         if force:
-            stripped=["".join(s for s in a.pdb if not s.isdigit()) for a in self]
-            return [i for i,a in enumerate(stripped) if a=='N' if not any([b=='C' for j,b in enumerate(stripped) if j in list(neighbours[i])])]
+            stripped = ["".join(s for s in a.pdb if not s.isdigit()) for a in self]
+            return [i for i, a in enumerate(stripped) if a == 'N' if not any([b == 'C' for j, b in enumerate(stripped) if j in list(neighbours[i])])]
         else:
-            return [a.index for i,a in enumerate(self) if a.pdb=='N' if not any([b.pdb=='C' for b in self[list(neighbours[i])]])]
+            return [a.index for i,a in enumerate(self) if a.pdb == 'N' if not any([b.pdb ==' C' for b in self[list(neighbours[i])]])]
         
     def get_nme_cap_sites(self, force=False):
         """Returns a list of atom indices whose PDB names are 'C' and do not have a neighbouring 'N'.
         force=True should be used if the backbone in a residue to cap is longer than 3 atoms (merged)"""
-        neighbours=self.get_neighbours()
+        neighbours = self.get_neighbours()
         if force:
-            stripped=["".join(s for s in a.pdb if not s.isdigit()) for a in self]
-            return [i for i,a in enumerate(stripped) if a=='C' if not any([b=='N' for j,b in enumerate(stripped) if j in list(neighbours[i])])]
+            stripped = ["".join(s for s in a.pdb if not s.isdigit()) for a in self]
+            return [i for i, a in enumerate(stripped) if a == 'C' if not any([b == 'N' for j, b in enumerate(stripped) if j in list(neighbours[i])])]
         else:
-            return [a.index for i,a in enumerate(self) if a.pdb=='C' if not any([b.pdb=='N' for b in self[list(neighbours[i])]])]
+            return [a.index for i, a in enumerate(self) if a.pdb == 'C' if not any([b.pdb == 'N' for b in self[list(neighbours[i])]])]
         
-    def cap_sites(self,sites=None,force=False):
+    def cap_sites(self, sites=None, force=False, optimise=False):
         """Adds and ACE or NME cap to sites. 
         Sites must be a list of atoms whose PDB name is either 'N' (for ACE) or 'C' (for NME).
         If sites is not provided it will be determined automatically."""
-            
-        data_path=get_data_path()
-        
+    
+        data_path = get_data_path()
+    
         if force:
             self.set_pdbs(["".join(s for s in a.pdb if not s.isdigit()) for a in self])
-        
-        if not sites:
-            sites=self.get_ace_cap_sites()+self.get_nme_cap_sites()
-        
+    
+        if sites is None:
+            sites = self.get_ace_cap_sites(force) + self.get_nme_cap_sites(force)
+    
         for self_a0 in sites:
-            
-            if self[self_a0].pdb=='N':
-                cap=read_pdb(data_path+'ace_cap.pdb')
-                pdb_list=['N','CA','C']
-                residue_offset=-1
-            elif self[self_a0].pdb=='C':
-                cap=read_pdb(data_path+'nme_cap.pdb')
-                pdb_list=['C','CA','O']
-                residue_offset=1
-            
-            res=self[self_a0].resnum
-            chain=self[self_a0].chain
-            
-            self_a1=sorted([[self.get_distance(a.index,self_a0),a.index] for a in self if a.resnum==res and a.pdb==pdb_list[1]])[0][1]
-            self_a2=sorted([[self.get_distance(a.index,self_a0),a.index] for a in self if a.resnum==res and a.pdb==pdb_list[2]])[0][1]
-            
-            cap_a0=[a.index for a in cap if a.residue=='ALA' and a.pdb==pdb_list[0]][0]
-            cap_a1=[a.index for a in cap if a.residue=='ALA' and a.pdb==pdb_list[1]][0]
-            cap_a2=[a.index for a in cap if a.residue=='ALA' and a.pdb==pdb_list[2]][0]
-            
-            self_mask_indices=[self_a0,self_a1,self_a2]
-            cap_mask_indices=[cap_a0,cap_a1,cap_a2]
-            
-            self.fit(cap,self_mask_indices,cap_mask_indices)
-            
-            append_atoms=cap.remove(residues='ALA')
-            for append_atom in append_atoms:
-                append_atom.resnum=res+residue_offset
-                append_atom.chain=chain
-                self+=append_atom
-        self.calculate_neighbours()
+    
+            if self[self_a0].pdb == 'N':
+                cap = read_pdb(data_path + 'ace_cap.pdb')
+                pdb_list = ['O', 'C', 'N', 'CA', 'C']
+                residue_offset =- 1
+                link_offset = 1
+            elif self[self_a0].pdb == 'C':
+                cap = read_pdb(data_path + 'nme_cap.pdb')
+                pdb_list = ['CH3', 'N', 'C', 'CA', 'O']
+                residue_offset = 1
+                link_offset = 0
+    
+            res = self[self_a0].resnum
+            chain = self[self_a0].chain
+    
+            self_a1 = sorted([[self.get_distance(a.index, self_a0), a.index] for a in self if a.resnum == res and a.pdb == pdb_list[3]])[0][1]
+            self_a2 = sorted([[self.get_distance(a.index, self_a0), a.index] for a in self if a.resnum == res and a.pdb == pdb_list[4]])[0][1]
+    
+            ala_a0 = [a.index for a in cap if a.residue == 'ALA' and a.pdb == pdb_list[2]][0]
+            ala_a1 = [a.index for a in cap if a.residue == 'ALA' and a.pdb == pdb_list[3]][0]
+            ala_a2 = [a.index for a in cap if a.residue == 'ALA' and a.pdb == pdb_list[4]][0]
+
+            cap_a0 = [a.index for a in cap if a.residue != 'ALA' and a.pdb == pdb_list[1]][0]
+            cap_a1 = [a.index for a in cap if a.residue != 'ALA' and a.pdb == pdb_list[0]][0]
+    
+            cap_mask_indices = [ala_a0, ala_a1, ala_a2]
+            self_mask_indices = [self_a0, self_a1, self_a2]
+    
+            self.fit(cap, self_mask_indices, cap_mask_indices)
         
-    def mutate(self,resnum,new_residue,remove_hydrogens=True,force=False,verbose=False,check=False):
+            atom_offset = len(self)
+            
+            if optimise:
+                def get_spheres(a0,a1):
+                    radii=0
+                    for a in [a0,a1]:
+                        if   a.symbol == 'C': radii += 1.07
+                        elif a.symbol == 'O': radii += 0.96
+                        elif a.symbol == 'N': radii += 1
+                        elif a.symbol == 'S': radii += 1.31
+                        elif a.symbol == 'S': radii += 1.35
+                    return radii
+                
+                mask = [0 if a.residue == 'ALA' else 1 for a in cap]
+                smallest_distances = []
+                optimisations = 8
+                dihedral_step = 4 * np.pi / optimisations
+                for i in range(8):
+                    t_cap = cap.take()
+                    t_cap.rotate_dihedral([ala_a1, ala_a0, cap_a0, cap_a1], dihedral_step * i, mask)
+                    cap_as = [a for a in t_cap.remove(residues = 'ALA') if a.pdb != pdb_list[1]]
+                    self_as = [a for a in self if a.index != self_a0]
+                    distances = [[np.linalg.norm(ca.position - sa.position) - get_spheres(ca,sa) for ca in cap_as] for sa in self_as]
+                    smallest_distances.append([min([a for b in distances for a in b]), i])
+                    
+                best = sorted(smallest_distances)[-1][1]
+                cap.rotate_dihedral([ala_a1, ala_a0, cap_a0, cap_a1], dihedral_step * best, mask)
+                    
+            append_atoms = cap.remove(residues = 'ALA')
+            append_atoms.calculate_neighbours()
+            
+            new_neighbours = [[a + atom_offset for a in n] for n in copy.deepcopy(append_atoms._neighbours)]
+            for append_atom in append_atoms:
+                append_atom.resnum = res + residue_offset
+                append_atom.chain = chain
+                self += append_atom
+            self._neighbours += new_neighbours
+            self._neighbours[atom_offset + link_offset].append(self_a0)
+            self._neighbours[self_a0].append(atom_offset + link_offset)
+        
+    def mutate(self, resnum, new_residue, remove_hydrogens=True, force=False, verbose=False, check=False):
         """Replace a residue with a standard residue. Preserves the backbone so might not work for PRO."""
         
-        data_path=get_data_path()
+        data_path = get_data_path()
 
-        old_res=self.take(resnums=resnum)   
-        new_prot=self.take(indices_in_tags=True)
+        old_res = self.take(resnums = resnum)   
+        new_prot = self.take(indices_in_tags = True)
         
         if force:
             old_res.set_pdbs(["".join(s for s in a.pdb if not s.isdigit()) for a in self])
         
-        new_res=read_pdb(data_path+new_residue+'.pdb')
+        if isinstance(new_residue, str):
+            if new_residue.endswith('.pdb'):
+                new_res = read_pdb(new_residue)
+            elif len(new_residue) == 1:
+                new_residue = convert_1_to_3(new_residue)
+            new_res = read_pdb(data_path + new_residue + '.pdb')
+        elif not isinstance(new_residue, self.__class__):
+            raise RuntimeError('new_residue must be either "str" or "Atoms"')
         if 'CB' in new_res.get_pdbs() and 'CB' in old_res.get_pdbs():
-            pdb_list=['N','CA','C','CB']
+            pdb_list = ['N', 'CA', 'C', 'CB']
         else:
-            pdb_list=['N','CA','C']
+            pdb_list = ['N', 'CA', 'C']
         
         
-        old_mask=[[a.index for a in old_res if a.pdb==pdb][0] for pdb in pdb_list]
-        new_mask=[[a.index for a in new_res if a.pdb==pdb][0] for pdb in pdb_list]
+        try:
+            old_mask = [[a.index for a in old_res if a.pdb == pdb][0] for pdb in pdb_list]
+        except IndexError:
+            raise RuntimeError('resnum doesn\t refer to a residue with pdb types N, CA and C')
+        try:
+            new_mask = [[a.index for a in new_res if a.pdb == pdb][0] for pdb in pdb_list]
+        except IndexError:
+            raise RuntimeError('new_residue requires pdb types N, CA and C')
         
-        chain=old_res[old_mask[0]].chain
+        chain = old_res[old_mask[0]].chain
         
-        old_res.fit(new_res,old_mask,new_mask)
+        old_res.fit(new_res, old_mask, new_mask)
         
         if verbose:
             for i in range(len(pdb_list)):
@@ -571,62 +624,63 @@ class Atoms(ae.Atoms):
                  new_residue,
                  old_res[old_mask[i]].pdb,
                  old_res[old_mask[i]].residue,
-                 np.linalg.norm(old_res[old_mask[i]].position-new_res[new_mask[i]].position)))
+                 np.linalg.norm(old_res[old_mask[i]].position - new_res[new_mask[i]].position)))
         
         backbone_pdbs = ['N','CA','C','O','1H','2H','HA','OC','HOC','OXT','HXT']
              
         if 'CG' in new_res.get_pdbs() and 'CG' in old_res.get_pdbs():
-            dihedrals=['N','CA','CB','CG']
-            old_dihedral=old_res.get_dihedral([[a.index for a in old_res if a.pdb==pdb][0] for pdb in dihedrals])
-            new_dihedral=new_res.get_dihedral([[a.index for a in new_res if a.pdb==pdb][0] for pdb in dihedrals])
-            angle=old_dihedral-new_dihedral
-            dihedral_mask=[0 if a.pdb in backbone_pdbs else 1 for a in new_res]
-            new_res.rotate_dihedral([[a.index for a in old_res if a.pdb==pdb][0] for pdb in dihedrals],angle=angle,mask=dihedral_mask)
-        
-                
+            dihedrals=['N', 'CA', 'CB', 'CG']
+            old_dihedral = old_res.get_dihedral([[a.index for a in old_res if a.pdb == pdb][0] for pdb in dihedrals])
+            new_dihedral = new_res.get_dihedral([[a.index for a in new_res if a.pdb == pdb][0] for pdb in dihedrals])
+            angle = old_dihedral - new_dihedral
+            dihedral_mask = [0 if a.pdb in backbone_pdbs else 1 for a in new_res]
+            new_res.rotate_dihedral([[a.index for a in old_res if a.pdb == pdb][0] for pdb in dihedrals], angle = angle, mask = dihedral_mask)     
         
         if remove_hydrogens:           
-            append_atoms=new_res.remove(symbols='H',pdbs=backbone_pdbs)
+            append_atoms = new_res.remove(symbols = 'H', pdbs = backbone_pdbs)
         else:
-            append_atoms=new_res.remove(pdbs=backbone_pdbs)
+            append_atoms = new_res.remove(pdbs = backbone_pdbs)
         
-        side_chain=new_prot.take(resnums=resnum).remove(pdbs=backbone_pdbs)
-        new_prot-=side_chain
+        side_chain = new_prot.take(resnums = resnum).remove(pdbs = backbone_pdbs)
+        new_prot -= side_chain
         if verbose and side_chain:
             print("\nStripped the following atoms from Residue %d:" % old_res[old_mask[0]].resnum)
             for a in side_chain:
-                print(" %-4s (%d)" % (a.pdb,a.tag))
+                print(" %-4s (%d)" % (a.pdb, a.tag))
         
         if verbose and append_atoms:
             print("\nAdded the following atoms from %s:" % new_residue)
         for append_atom in append_atoms:
-            append_atom.resnum=resnum
-            append_atom.chain=chain
+            append_atom.resnum = resnum
+            append_atom.chain = chain
             if verbose:
                 print(" %-4s" % append_atom.pdb)
-            new_prot+=append_atom
+            new_prot += append_atom
         
         for a in new_prot:
-            if a.resnum==resnum:
-                a.residue=new_residue
-        
+            if a.resnum == resnum:
+                a.residue = new_residue
         
         new_prot.reorder_residues()
             
         if check:
-            clashes={i:[c for c in b if new_prot[c].resnum!=resnum] for i,b in enumerate(new_prot.get_neighbours()) 
-                        if new_prot[i].resnum==resnum and new_prot[i].pdb not in backbone_pdbs}
+            clashes={i: [c for c in b if new_prot[c].resnum != resnum] for i,b in enumerate(new_prot.get_neighbours()) 
+                        if new_prot[i].resnum == resnum and new_prot[i].pdb not in backbone_pdbs}
             if [a for b in clashes.values() for a in b]:
                 print("\nClashes found:")
-                for atom_num,clash_list in clashes.iteritems():
+                for atom_num, clash_list in clashes.iteritems():
                     for clash in clash_list:
-                        print(" %s%d-%s%d Delta = %.3fA" % (new_prot[atom_num].symbol,atom_num,new_prot[clash].symbol,clash,new_prot.get_distance(atom_num,clash)))     
+                        print(" %s%d-%s%d Delta = %.3fA" % (new_prot[atom_num].symbol, 
+                                                            atom_num, 
+                                                            new_prot[clash].symbol, 
+                                                            clash, 
+                                                            new_prot.get_distance(atom_num, clash)))     
             else:
                 print("\nNo clashes found.")
             
         return new_prot
         
-    def fit(self,other,mask_indices,other_mask_indices):
+    def fit(self, other,mask_indices, other_mask_indices):
         """Performs the set of transformations on 'other' that aligns its subset to a subset of 'self'."""
         self_pos=copy.deepcopy(self[mask_indices].get_positions())
         other_pos=copy.deepcopy(other[other_mask_indices].get_positions())
@@ -640,9 +694,9 @@ class Atoms(ae.Atoms):
         v, l, u = np.linalg.svd(np.dot(np.transpose(self_pos), other_pos))
         r = np.dot(v, u)
         t = self_ave - np.dot(r, other_ave)
-        other.set_positions(np.dot(other.get_positions(),np.transpose(r))+t)
+        other.set_positions(np.dot(other.get_positions(), np.transpose(r)) + t)
         
-    def find_subset(self,subset,target_residues=[],return_mask=False,threshold=1e-2,atoms_to_choose=4,get_neighbouring_h=True):
+    def find_subset(self, subset, target_residues=[], return_mask=False, threshold=1e-2, atoms_to_choose=4, get_neighbouring_h=True):
         """Returns a mask or a list of indices that correspond to the atoms that match the subset by coordinates and symbol."""
         
         if isinstance(target_residues,str):
@@ -650,55 +704,55 @@ class Atoms(ae.Atoms):
         else:
             tags,target = list(map(list, zip(*[[a.index,a] for a in self if len(target_residues)==0 or a.resnum in target_residues])))
         
-        target=Atoms(target)
+        target = Atoms(target)
         target.set_tags(tags)
         
-        atomic_numbers=subset.get_atomic_numbers()
-        sort_choice=sorted(range(len(atomic_numbers)), key=lambda k: -atomic_numbers[k])
-        subset_pairs=[[[a,b] for j,b in enumerate(sort_choice) if j<i] for i,a in enumerate(sort_choice)]
-        subset_pairs=[a for b in subset_pairs for a in b]
+        atomic_numbers = subset.get_atomic_numbers()
+        sort_choice = sorted(range(len(atomic_numbers)), key = lambda k: -atomic_numbers[k])
+        subset_pairs = [[[a, b] for j, b in enumerate(sort_choice) if j < i] for i, a in enumerate(sort_choice)]
+        subset_pairs = [a for b in subset_pairs for a in b]
         
-        total_tp,total_sp=[],[]
+        total_tp, total_sp = [], []
         while True:
-            sp=subset_pairs.pop()
-            spd=subset.get_distance(sp[0],sp[1])
-            tp=[[[i,j] 
-                          for j,b in enumerate(target) if b.symbol==subset[sp[1]].symbol and abs(target.get_distance(i,j)-spd)<threshold] 
-                          for i,a in enumerate(target) if a.symbol==subset[sp[0]].symbol]
-            tp=[a for b in tp for a in b]
-            if len(tp)==1:
+            sp = subset_pairs.pop()
+            spd = subset.get_distance(sp[0], sp[1])
+            tp = [[[i, j] 
+                          for j, b in enumerate(target) if b.symbol == subset[sp[1]].symbol and abs(target.get_distance(i, j) - spd) < threshold] 
+                          for i, a in enumerate(target) if a.symbol == subset[sp[0]].symbol]
+            tp = [a for b in tp for a in b]
+            if len(tp) == 1:
                 [total_tp.append(p) for p in tp[0] if p not in total_tp]
                 [total_sp.append(p) for p in sp if p not in total_sp]
-                if len(total_tp)>3:
-                    target.fit(subset,total_tp,total_sp)
-                    mask=[1*any([True if np.linalg.norm(s.position-t.position)<threshold else False for s in subset]) for t in target]
-                    indices=[target[i].index for i in range(len(target)) if mask[i]==1]
-                    if sum(mask)==len(subset):
+                if len(total_tp) > 3:
+                    target.fit(subset, total_tp, total_sp)
+                    mask = [1 * any([True if np.linalg.norm(s.position - t.position) < threshold else False for s in subset]) for t in target]
+                    indices = [target[i].index for i in range(len(target)) if mask[i] == 1]
+                    if sum(mask) == len(subset):
                         break
                     else:
-                        total_tp,total_sp=[],[]
+                        total_tp, total_sp = [], []
         if get_neighbouring_h:
-            neighbours=target.get_neighbours()
-            indices+=[a for b in [[n for n in neighbours[index] if target[n].symbol=='H'] for index in indices] for a in b]
+            neighbours = target.get_neighbours()
+            indices += [a for b in [[n for n in neighbours[index] if target[n].symbol == 'H'] for index in indices] for a in b]
         
-        indices=[a.tag for a in target if a.index in indices]
-        mask=[1 if i in indices else 0 for i in range(len(self))]
+        indices = [a.tag for a in target if a.index in indices]
+        mask = [1 if i in indices else 0 for i in range(len(self))]
         
         if return_mask:
             return mask
         else:
             return indices
         
-    def take(self,symbols=None,atom_types=None,ambers=None,pdbs=None,partial_pdbs=None,residues=None,resnums=None,chains=None,tags=None,indices_in_tags=False):
+    def take(self, symbols=None, atom_types=None, ambers=None, pdbs=None, partial_pdbs=None, residues=None, resnums=None, chains=None, tags=None, indices_in_tags=False):
         """Returns a copy whose properties match the arguments.
         With no arguments, this method returns a deep copy.
         If atom indices from the parent are required, they can be transfered to tags with indices_in_tags=True"""
-        atoms=copy.deepcopy(self)
-        atom_list=range(len(self))
+        atoms = copy.deepcopy(self)
+        atom_list = range(len(self))
         
-        attr_dict={'symbol': symbols, 'atom_type':   atom_types,   'amber':  ambers,
-                   'pdb':    pdbs,    'residue':     residues,     'resnum': resnums,
-                   'chain':  chains,  'partial_pdb': partial_pdbs, 'tag':    tags}
+        attr_dict = {'symbol': symbols, 'atom_type':   atom_types,   'amber':  ambers,
+                     'pdb':    pdbs,    'residue':     residues,     'resnum': resnums,
+                     'chain':  chains,  'partial_pdb': partial_pdbs, 'tag':    tags}
         
         for key, value in attr_dict.iteritems():
             if value is not None:
@@ -712,16 +766,16 @@ class Atoms(ae.Atoms):
         if indices_in_tags: atoms.set_tags(atom_list)
         return self.__class__(atoms)
         
-    def remove(self,symbols=None,atom_types=None,ambers=None,pdbs=None,partial_pdbs=None,residues=None,resnums=None,chains=None,tags=None,indices_in_tags=False):
+    def remove(self, symbols=None, atom_types=None, ambers=None, pdbs=None, partial_pdbs=None, residues=None, resnums=None, chains=None, tags=None, indices_in_tags=False):
         """Returns a copy whose properties do not match the arguments.
         With no arguments, this method returns a deep copy.
         If atom indices from the parent are required, they can be transfered to tags with indices_in_tags=True"""
-        atoms=copy.deepcopy(self)
-        atom_list=range(len(self))
+        atoms = copy.deepcopy(self)
+        atom_list = range(len(self))
         
-        attr_dict={'symbol': symbols, 'atom_type':   atom_types,   'amber':  ambers,
-                   'pdb':    pdbs,    'residue':     residues,     'resnum': resnums,
-                   'chain':  chains,  'partial_pdb': partial_pdbs, 'tag':    tags}
+        attr_dict = {'symbol': symbols, 'atom_type':   atom_types,   'amber':  ambers,
+                     'pdb':    pdbs,    'residue':     residues,     'resnum': resnums,
+                     'chain':  chains,  'partial_pdb': partial_pdbs, 'tag':    tags}
         
         for key, value in attr_dict.iteritems():
             if value is not None:
@@ -732,12 +786,12 @@ class Atoms(ae.Atoms):
                     atom_list = filter(lambda i: getattr(atoms[i],key) not in set(value),atom_list)
         
         atoms = atoms[atom_list]
-        if indices_in_tags: atoms.set_tags(atom_list)
+#        if indices_in_tags: atoms.set_tags(atom_list)
         return self.__class__(atoms)
         
     def get_backbone(self):
         """Returns a copy of the backbone atoms (PDB = 'C', 'CA', 'N')"""
-        return self.take(partial_pdbs=['C','CA','N'])
+        return self.take(partial_pdbs = ['C', 'CA', 'N'])
         
     def analyse(self):
         """Performs an analysis on each chain:
@@ -748,40 +802,40 @@ class Atoms(ae.Atoms):
         print("->Formula: %s" % self.get_chemical_formula())
         print("->Size: %d" % len(self))
         
-        chain_ids=list(set(self.get_chains()))
-        print("%d chains found: %s" % (len(chain_ids)," ".join(chain_ids)))
+        chain_ids = list(set(self.get_chains()))
+        print("%d chains found: %s" % (len(chain_ids), " ".join(chain_ids)))
         
         for chain_id in chain_ids:
             if chain_id:
-                chain=self.take(chains=chain_id,indices_in_tags=True)
+                chain = self.take(chains = chain_id, indices_in_tags = True)
             else:
-                chain=self.take(indices_in_tags=True)
+                chain = self.take(indices_in_tags = True)
             
             print("Chain %s:" % chain_id)
             
-            backbone=chain.get_backbone()
-            res_dict=chain.remove(residues='HOH').get_residue_dict()
+            backbone = chain.get_backbone()
+            res_dict = chain.remove(residues = 'HOH').get_residue_dict()
             
-            print("->Composed of %-4d protein residues and %-4d water residues" % (len(res_dict),len(chain.take(residues='HOH'))))
+            print("->Composed of %-4d protein residues and %-4d water residues" % (len(res_dict), len(chain.take(residues = 'HOH'))))
             print("->Sequence:")
             print("-".join(res for res in res_dict.itervalues()))
             print("-".join("{:-^3}".format(resnum) for resnum in res_dict.iterkeys()))
             
-            bn=backbone.get_neighbours()
-            ends=[i for i,n in enumerate(bn) if len(n)==1]
-            ns_links=[i for i,n in enumerate(bn) if len(n)>2]
+            bn = backbone.get_neighbours()
+            ends = [i for i, n in enumerate(bn) if len(n) == 1]
+            ns_links = [i for i, n in enumerate(bn) if len(n) > 2]
             
             print("->%d terminals found:" % len(ends))
             for end in ends:
-                print("-->%-5d %-4s in residue number %-4d (%s)" % (backbone[end].tag,backbone[end].pdb,backbone[end].resnum,backbone[end].residue))
+                print("-->%-5d %-4s in residue number %-4d (%s)" % (backbone[end].tag, backbone[end].pdb, backbone[end].resnum, backbone[end].residue))
             if ns_links:
                 print("->Unusual linkage found:")
             for ns_link in ns_links:
-                print("-->%-5d %-4s in residue number %-4d (%s)" % (backbone[ns_link].tag,backbone[ns_link].pdb,backbone[ns_link].resnum,backbone[ns_link].residue))
+                print("-->%-5d %-4s in residue number %-4d (%s)" % (backbone[ns_link].tag, backbone[ns_link].pdb, backbone[ns_link].resnum, backbone[ns_link].residue))
             print("\n")
             
     def __repr__(self):
-        return ae.Atoms.__repr__(self).replace('ASE Extensions ','ASE Protein ')
+        return ae.Atoms.__repr__(self).replace('ASE Extensions ', 'ASE Protein ')
         
 
     def __getitem__(self, i):
@@ -790,21 +844,34 @@ class Atoms(ae.Atoms):
             if i < -natoms or i >= natoms:
                 raise IndexError('Index out of range.')
 
-            return Atom(atoms=self, index=i)
+            return Atom(atoms = self, index = i)
         else:
             return ae.Atoms.__getitem__(self,i)
             
-    def clean(self,debug=False):
+    def clean(self, debug = False):
         
         self.reorder_residues()
         self.renumber_residues()
-        self.calculate_ambers_pdbs(debug=debug)
-        chains=self.get_chains()
+        self.calculate_ambers_pdbs(debug = debug)
+        chains = self.get_chains()
         
-        for i,a in enumerate(self):
+        for i, a in enumerate(self):
             a.chain = '' if not chains[i] or isinstance(chains[i],int) or chains[i].isdigit() else chains[i]
         
-            
+    def fix_hypervalent_hydrogens(self):
+        neighbours = self.get_neighbours()
+        hvhs = [[i, neighbours[i]] for i,a in enumerate(self) if a.symbol =='H' and len(neighbours[i]) > 1]
+        
+        for h, ns in hvhs:
+            different_residue = [n for n in ns if self[h].resnum != self[n].resnum]
+            same_residue = [n for n in ns if self[h].resnum == self[n].resnum]
+            if len(different_residue) == 1:
+                neighbours[h].remove(different_residue[0])
+                neighbours[different_residue[0]].remove(h)
+                self.set_angle([different_residue[0], same_residue[0], h], 2 * np.pi / 3, [1 if i == h else 0 for i in range(len(self))])
+            else:
+                warnings.warn('Hydrogen ({h}) is in same residue as neighbours ({ns})'.format(h = h, ns = ns))
+                
     def write_pdb(self, filename='', atom_col_type='', print_std=False, **kwargs):
         """Write images to PDB-file.
     
@@ -812,23 +879,20 @@ class Atoms(ae.Atoms):
         http://www.wwpdb.org/documentation/format32/sect9.html."""
         
         if print_std:
-            filename="STDOUT"
+            filename = "STDOUT"
         elif not filename:
-            filename=self.info.get("name")+".pdb"
+            filename = self.info.get("name") + ".pdb"
             if not filename:
                 raise RuntimeError("filename required")        
         
-        filestr=''
+        filestr = ''
         if self.get_pbc().any():
             from ase.lattice.spacegroup.cell import cell_to_cellpar
             cellpar = cell_to_cellpar( self.get_cell())
-            # ignoring Z-value, using P1 since we have all atoms defined explicitly
-            format = 'CRYST1%9.3f%9.3f%9.3f%7.2f%7.2f%7.2f P 1\n'
-            filestr+=format % (cellpar[0], cellpar[1], cellpar[2], cellpar[3], cellpar[4], cellpar[5])
+            frm = 'CRYST1%9.3f%9.3f%9.3f%7.2f%7.2f%7.2f P 1\n'
+            filestr += frm % (cellpar[0], cellpar[1], cellpar[2], cellpar[3], cellpar[4], cellpar[5])
     
-        format="%-6s%5d %-4s %3s %1s%4d    %8.3f%8.3f%8.3f                      %2s  \n"
-        # RasMol complains if the atom index exceeds 100000. There might
-        # be a limit of 5 digit numbers in this field.
+        frm = "%-6s%5d %-4s %3s %1s%4d    %8.3f%8.3f%8.3f                      %2s  \n"
         MAXNUM = 100000
         
         symbols = self.get_chemical_symbols()
@@ -840,23 +904,23 @@ class Atoms(ae.Atoms):
         p = self.get_positions()
         ambers = self.get_ambers()
         natoms = len(symbols)
-        
+        neighbours_list = self._neighbours
         
         if atom_col_type in ['','pdb','pdbs']:
-            col='pdb types'
-            atom_names=pdbs
+            col = 'pdb types'
+            atom_names = pdbs
         elif atom_col_type in ['amber','ambers']:
-            col='amber types'
-            atom_names=ambers
+            col = 'amber types'
+            atom_names = ambers
         elif atom_col_type in ['symbol','symbols']:
-            col='symbols'
-            atom_names=symbols        
+            col = 'symbols'
+            atom_names = symbols        
         
-        col_warn_list=[i for i,a in enumerate(atom_names) if a in ['','0',0]]
+        col_warn_list = [i for i, a in enumerate(atom_names) if a in ['', '0', 0]]
         if col_warn_list:
-            warnings.warn(RuntimeWarning("Empty {m} written to {f}:\n{a}".format(m=col,a=_listrepr(col_warn_list),f=filename)))
+            warnings.warn(RuntimeWarning("Empty {m} written to {f}:\n{a}".format(m = col, a = _listrepr(col_warn_list), f=filename)))
             
-        filestr+='MODEL     1\n'
+        filestr += 'MODEL     1\n'
         for a in range(natoms):
             x, y, z = p[a]
             
@@ -864,11 +928,15 @@ class Atoms(ae.Atoms):
             chain = '' if chains[a] in ['','0',0,None] else chains[a]
             
             atom_name = atom_names[a]
-            if len(atom_name)!=4 and len(symbols[a])==1:
-                atom_name=' '+atom_name
+            if len(atom_name) !=4 and len(symbols[a]) == 1:
+                atom_name = ' ' + atom_name
             #                       %-6s       %5d           %-4s       %3s          %1s    %4d         %8.3f%8.3f%8.3f%2s
-            filestr+=format % (atom_type, a+1 % MAXNUM, atom_name, residues[a], chain, resnums[a], x,   y,   z,   symbols[a].rjust(2))
-        filestr+='ENDMDL\n'
+            filestr += frm % (atom_type, a+1 % MAXNUM, atom_name, residues[a], chain, resnums[a], x,   y,   z,   symbols[a].rjust(2))
+        
+        for a, neighbours in enumerate(neighbours_list):
+            if neighbours != []:
+                filestr += 'CONECT' + '%5d' % (a + 1) + ''.join(['%5d' % (n + 1) for n in neighbours if n > a]) + '\n'
+        filestr += 'ENDMDL\n'
         
         if print_std:
             print(filestr)
@@ -880,65 +948,73 @@ class Atoms(ae.Atoms):
         """Writes images to a Sybyl mol2 file."""
         
         if print_std:
-            filename="STDOUT"
+            filename = "STDOUT"
         elif not filename:
-            filename=self.info.get("name")+".mol2"
+            filename = self.info.get("name") + ".mol2"
             if not filename:
                 raise RuntimeError("filename required")
     
-        if mol_name=='': mol_name=self.get_chemical_formula()
+        if mol_name == '': mol_name = self.get_chemical_formula()
         
         bonds = self.get_bonds()        
         num_bonds = len(bonds)
-        pdbs=self.get_pdbs()
-        ambers=self.get_ambers()
-        symbols=self.get_chemical_symbols()
+        pdbs = self.get_pdbs()
+        ambers = self.get_ambers()
+        symbols = self.get_chemical_symbols()
         
         
-        if atom_col_1 in ['','pdb','pdbs']:
-            col_1='pdb types'
-            atom_names=pdbs
-        elif atom_col_1 in ['amber','ambers']:
-            col_1='amber types'
-            atom_names=ambers
-        elif atom_col_1 in ['symbol','symbols']:
-            col_1='symbols'
-            atom_names=symbols
+        if atom_col_1 in ['', 'pdb', 'pdbs']:
+            col_1 = 'pdb types'
+            atom_names = pdbs
+        elif atom_col_1 in ['amber', 'ambers']:
+            col_1 = 'amber types'
+            atom_names = ambers
+        elif atom_col_1 in ['symbol', 'symbols']:
+            col_1 = 'symbols'
+            atom_names = symbols
             
-        if atom_col_2 in ['','amber','ambers']:
-            col_2='amber types'
-            sybyl_names=ambers
-        elif atom_col_2 in ['pdb','pdbs']:
-            col_2='pdb types'
-            sybyl_names=pdbs
-        elif atom_col_2 in ['symbol','symbols']:
-            col_2='symbols'
-            sybyl_names=symbols
+        if atom_col_2 in ['', 'amber', 'ambers']:
+            col_2 = 'amber types'
+            sybyl_names = ambers
+        elif atom_col_2 in ['pdb', 'pdbs']:
+            col_2 = 'pdb types'
+            sybyl_names = pdbs
+        elif atom_col_2 in ['symbol', 'symbols']:
+            col_2 = 'symbols'
+            sybyl_names = symbols
         
-        col_1_warn_list=[i for i,a in enumerate(atom_names) if a in ['','0',0]]
+        col_1_warn_list = [i for i, a in enumerate(atom_names) if a in ['' ,'0', 0]]
         if col_1_warn_list:
-            warnings.warn(RuntimeWarning("Empty {m} written to {f}:\n{a}".format(m=col_1,a=_listrepr(col_1_warn_list),f=filename)))
+            warnings.warn(RuntimeWarning("Empty {m} written to {f}:\n{a}".format(m = col_1, a = _listrepr(col_1_warn_list), f = filename)))
             
-        col_2_warn_list=[i for i,a in enumerate(sybyl_names) if a in ['','0',0]]
+        col_2_warn_list = [i for i, a in enumerate(sybyl_names) if a in ['', '0', 0]]
         if col_2_warn_list:
-            warnings.warn(RuntimeWarning("Empty {m} written to {f}:\n{a}".format(m=col_2,a=_listrepr(col_2_warn_list),f=filename)))
+            warnings.warn(RuntimeWarning("Empty {m} written to {f}:\n{a}".format(m = col_2, a = _listrepr(col_2_warn_list), f = filename)))
                      
         
-        filestr="@<TRIPOS>MOLECULE\n"
-        filestr+="%s\n" % mol_name
-        filestr+=" %4d %5d %5d %5d %5d\n" % (len(self),num_bonds,1,0,0)
-        filestr+="%s\n" % mol_type
-        filestr+="No Charge or Current Charge\n\n\n"
-        filestr+="@<TRIPOS>ATOM\n"
-        for i,atom in enumerate(self):
+        filestr = "@<TRIPOS>MOLECULE\n"
+        filestr += "%s\n" % mol_name
+        filestr += " %4d %5d %5d %5d %5d\n" % (len(self), num_bonds, 1, 0, 0)
+        filestr += "%s\n" % mol_type
+        filestr += "No Charge or Current Charge\n\n\n"
+        filestr += "@<TRIPOS>ATOM\n"
+        for i, atom in enumerate(self):
             atom_name = atom_names[i]
             sybyl_name = sybyl_names[i]
-            filestr+=" %6d %-8s %9.4f %9.4f %9.4f %-6s %4d %-6s %10.6f\n" % (i+1,atom_name,atom.x,atom.y,atom.z,sybyl_name,atom.resnum,atom.residue,atom.amber_charge)
+            filestr += " %6d %-8s %9.4f %9.4f %9.4f %-6s %4d %-6s %10.6f\n" % (i + 1,
+                                                                               atom_name,
+                                                                               atom.x,
+                                                                               atom.y,
+                                                                               atom.z,
+                                                                               sybyl_name,
+                                                                               atom.resnum,
+                                                                               atom.residue,
+                                                                               atom.amber_charge)
         
         
-        filestr+="@<TRIPOS>BOND\n"
-        for i,bond in enumerate(bonds):
-            filestr+=" %5d %4d %4d %1d\n" % (i+1,bond[0]+1,bond[1]+1,1)
+        filestr += "@<TRIPOS>BOND\n"
+        for i, bond in enumerate(bonds):
+            filestr += " %5d %4d %4d %1d\n" % (i + 1, bond[0] + 1, bond[1] + 1, 1)
         
         if print_std:
             print(filestr)
@@ -1278,8 +1354,8 @@ def read_pdb(fileobj, index=-1, alt_structure='A'):
     else:
         lines = fileobj.readlines()
 
-    data_path=get_data_path()
-    with open(data_path+"ambers.txt",'r') as amberobj:
+    data_path = get_data_path()
+    with open(data_path + "ambers.txt", 'r') as amberobj:
         amber_ref = [amber.split() for amber in amberobj.readlines() if '#' not in amber]        
     
     images = []
@@ -1289,12 +1365,12 @@ def read_pdb(fileobj, index=-1, alt_structure='A'):
             try:
                 # Atom name is arbitrary and does not necessarily contain the element symbol.
                 # The specification requires the element symbol to be in columns 77+78.
-                if line[16]!=' ' and line[16]!=alt_structure:
+                if line[16] != ' ' and line[16] != alt_structure:
                     continue
-                charge=0
-                atom_type=line[0:6].strip()
+                charge = 0
+                atom_type = line[0:6].strip()
                 try:
-                    symbol,charge = [(amber[1],amber[2]) for amber in amber_ref if amber[0]==line[76:78].strip()]
+                    symbol, charge = [(amber[1], amber[2]) for amber in amber_ref if amber[0] == line[76:78].strip()]
                 except ValueError:
                     symbol = line[12:16].strip()[0]
                 pdb = line[12:16].strip()
@@ -1305,81 +1381,90 @@ def read_pdb(fileobj, index=-1, alt_structure='A'):
                 residue = line[17:20].strip()
                 chain = line[21].strip()
                 resnum = int(line[22:26].strip())
-                if line[78:80].strip()!='':
-                    if line[79]=='+':
-                        charge=int(line[78])
-                    if line[79]=='-':
-                        charge=-int(line[78])
-                atoms.append(Atom(symbol=symbol,
-                                  position=position,
-                                  residue=residue,
-                                  resnum=resnum,
-                                  amber_charge=charge,
-                                  chain=chain,
-                                  pdb=pdb,
-                                  atom_type=atom_type))
+                if line[78:80].strip() != '':
+                    if line[79] == '+':
+                        charge = int(line[78])
+                    if line[79] == '-':
+                        charge =- int(line[78])
+                atoms.append(Atom(symbol = symbol,
+                                  position = position,
+                                  residue = residue,
+                                  resnum = resnum,
+                                  amber_charge = charge,
+                                  chain = chain,
+                                  pdb = pdb,
+                                  atom_type = atom_type))
             except:
                 pass
         if line.startswith('ENDMDL'):
-            atoms.info["name"]=fileobj.name.replace(".pdb","").split(os.sep)[-1]
+            atoms.info["name"] = fileobj.name.replace(".pdb","").split(os.sep)[-1]
             images.append(atoms)
             atoms = Atoms()
     if len(images) == 0:
-        atoms.info["name"]=fileobj.name.replace(".pdb","").split(os.sep)[-1]
+        atoms.info["name"] = fileobj.name.replace(".pdb","").split(os.sep)[-1]
         images.append(atoms)
     return images[index]
 
-def read_pqr(fileobj,atom_col_type=''):    
+def read_pqr(fileobj, atom_col_type=''):    
     if isinstance(fileobj, str):
         with open(fileobj,'r') as fileobj:
-            ls = [l.split() for l in fileobj.readlines() if l.split()[0]=='ATOM' or l.split()[0]=='HETATM']  
+            ls = [l.split() for l in fileobj.readlines() if l.split()[0] == 'ATOM' or l.split()[0] == 'HETATM']  
     else:
-        ls = [l.split() for l in fileobj.readlines() if l.split()[0]=='ATOM' or l.split()[0]=='HETATM']  
+        ls = [l.split() for l in fileobj.readlines() if l.split()[0] == 'ATOM' or l.split()[0] == 'HETATM']  
     
-    o=0 if ls[0][4].isdigit() else 1
+    o = 0 if ls[0][4].isdigit() else 1
     
-    atom_types = [l[0] for l in ls]
-    atom_names = [l[2] for l in ls]
-    residues = [l[3] for l in ls]
-    chains = [(o==1)*l[4] for l in ls]
-    resnums = [int(l[4]) for l in ls]
-    positions = [[float(p) for p in l[5:8]] for l in ls]
-    charges = [float(l[8]) for l in ls]
-    radii = [float(l[9]) for l in ls]
+    atom_types = [l[0]                               for l in ls]
+    atom_names = [l[2]                               for l in ls]
+    residues   = [l[3]                               for l in ls]
+    chains     = [(o == 1) * l[4]                    for l in ls]
+    resnums    = [int(l[4 + o])                      for l in ls]
+    positions  = [[float(p) for p in l[5 + o:8 + o]] for l in ls]
+    charges    = [float(l[8 + o])                    for l in ls]
+    radii      = [float(l[9 + o])                    for l in ls]
     
     if not atom_col_type:
-        atom_col_type=amber_or_pdb(atom_names)
+        atom_col_type = amber_or_pdb(atom_names)
     
-    if atom_col_type in ['pdb','pdbs']:
-        pdbs=atom_names
-        symbols,alt_charges=get_symbols_charges(atom_names,'pdb')
-        ambers=None
-    elif atom_col_type in ['amber','ambers']:
-        ambers=atom_names
-        symbols,alt_charges=get_symbols_charges(atom_names,'amber')
-        pdbs=None
-    elif atom_col_type in ['symbol','symbols']:
-        symbols=atom_names
-        ambers=None
-        pdbs=None
-        alt_charges=None
+    if atom_col_type in ['pdb', 'pdbs']:
+        pdbs = atom_names
+        symbols, alt_charges = get_symbols_charges(atom_names, 'pdb')
+        ambers = None
+    elif atom_col_type in ['amber', 'ambers']:
+        ambers = atom_names
+        symbols, alt_charges = get_symbols_charges(atom_names, 'amber')
+        pdbs = None
+    elif atom_col_type in ['symbol', 'symbols']:
+        symbols = atom_names
+        ambers = None
+        pdbs = None
+        alt_charges = None
         
-    if sum([abs(c) for c in charges])<1e-5:
-        charges=alt_charges
+    if sum([abs(c) for c in charges]) < 1e-5:
+        charges = alt_charges
     
-    atoms = Atoms(symbols=symbols,positions=positions,atom_types=atom_types,pdbs=pdbs,ambers=ambers,chains=chains,amber_charges=charges,resnums=resnums,residues=residues,radii=radii)
-    atoms.info["name"]=fileobj.name.replace(".pqr","").split(os.sep)[-1]
+    atoms = Atoms(symbols = symbols,
+                  positions = positions,
+                  atom_types = atom_types,
+                  pdbs = pdbs,
+                  ambers = ambers,
+                  chains = chains,
+                  amber_charges = charges, 
+                  resnums = resnums,
+                  residues = residues,
+                  radii = radii)
+    atoms.info["name"] = fileobj.name.replace(".pqr", "").split(os.sep)[-1]
     
     return atoms
     
-def read_mol2(fileobj,atom_col_1='',atom_col_2=''):
+def read_mol2(fileobj, atom_col_1 = '', atom_col_2 = ''):
     """Read mol2 files.
     Use atom_col_1/atom_col_2 = 'pdb'/'amber' if known, otherwise they will be determined automatically.
 
     The format is assumed to follow the description given in
     http://www.tripos.com/data/support/mol2.pdf"""
     if isinstance(fileobj, str):
-        with open(fileobj,'r') as fileobj:
+        with open(fileobj, 'r') as fileobj:
             data = fileobj.read()
     else:
         data = fileobj.read()
@@ -1389,44 +1474,51 @@ def read_mol2(fileobj,atom_col_1='',atom_col_2=''):
     master_dict = {k: section_data[i].split('\n')[1:-1] for i, k in enumerate(keys)}
     
     ls = [l.split() for l in master_dict.get('ATOM')]
-    sybyl_atom_names = [l[1] for l in ls]
-    positions = [[float(p) for p in l[2:5]] for l in ls]
-    sybyl_atom_types = [l[5] for l in ls]
-    resnums = [int(l[6]) for l in ls]
-    residues = [l[7] for l in ls]
-    charges = [float(l[8]) for l in ls]
+    
+    sybyl_atom_names = [l[1]                       for l in ls]
+    positions        = [[float(p) for p in l[2:5]] for l in ls]
+    sybyl_atom_types = [l[5]                       for l in ls]
+    resnums          = [int(l[6])                  for l in ls]
+    residues         = [l[7]                       for l in ls]
+    charges          = [float(l[8])                for l in ls]
     
     if not positions:
         raise RuntimeError("Failed to read {f}. No position data found".format(f=fileobj.name))
     
     if not atom_col_1:
-        atom_col_1=amber_or_pdb(sybyl_atom_names)
+        atom_col_1 = amber_or_pdb(sybyl_atom_names)
     if not atom_col_2:
-        atom_col_2=amber_or_pdb(sybyl_atom_types)
+        atom_col_2 = amber_or_pdb(sybyl_atom_types)
     
     if atom_col_1 in ['pdb','pdbs']:
-        pdbs=sybyl_atom_names
-        symbols,alt_charges=get_symbols_charges(pdbs,'pdb')
-        if atom_col_2 in ['amber','ambers']: 
-            ambers=sybyl_atom_types
-            symbols=[s if s[0]!="D" else ambers[i][0] for i,s in enumerate(symbols)]  
+        pdbs = sybyl_atom_names
+        symbols, alt_charges = get_symbols_charges(pdbs, 'pdb')
+        if atom_col_2 in ['amber', 'ambers']: 
+            ambers = sybyl_atom_types
+            symbols = [s if s[0] != "D" else ambers[i][0] for i, s in enumerate(symbols)]  
         else:
-            ambers=None
+            ambers = None
     else:
-        ambers=sybyl_atom_names
-        symbols,alt_charges=get_symbols_charges(sybyl_atom_names,'amber')
-        if atom_col_2 in ['pdb','pdbs']:
-            pdbs=sybyl_atom_types
-            symbols=[s if s[0]!="D" else pdbs[i][0] for i,s in enumerate(symbols)]  
+        ambers = sybyl_atom_names
+        symbols, alt_charges = get_symbols_charges(sybyl_atom_names, 'amber')
+        if atom_col_2 in ['pdb', 'pdbs']:
+            pdbs = sybyl_atom_types
+            symbols = [s if s[0] != "D" else pdbs[i][0] for i, s in enumerate(symbols)]  
         else:
-            pdbs=None
+            pdbs = None
         
-    if sum([abs(c) for c in charges])<1e-5:
-        charges=alt_charges
+    if sum([abs(c) for c in charges]) < 1e-5:
+        charges = alt_charges
       
     
-    atoms=Atoms(symbols=symbols,positions=positions,pdbs=pdbs,ambers=ambers,amber_charges=charges,resnums=resnums,residues=residues)
-    atoms.info["name"]=fileobj.name.replace(".mol2","").split(os.sep)[-1]
+    atoms = Atoms(symbols = symbols,
+                  positions = positions,
+                  pdbs = pdbs,
+                  ambers = ambers,
+                  amber_charges = charges,
+                  resnums = resnums,
+                  residues = residues)
+    atoms.info["name"] = fileobj.name.replace(".mol2", "").split(os.sep)[-1]
     
     return atoms
     
@@ -1449,10 +1541,10 @@ def read_spf(filename, structure=['A'], return_atom_names=False):
             scl = l.split()[2:]
             abcs = [float(s) for s in scl[0:3]]
             angs = [np.deg2rad(float(s)) for s in scl[3:6]]
-            v = (1 - (np.cos(angs[0]))**2 - (np.cos(angs[1]))**2 - (np.cos(angs[2]))**2 + 2*np.cos(angs[0])*np.cos(angs[1])*np.cos(angs[2]))**0.5
-            trans_matrix = np.array([[abcs[0], abcs[1]*np.cos(angs[2]), abcs[2]*np.cos(angs[1])],
-                                     [0, abcs[1]*np.sin(angs[2]), abcs[2]*(np.cos(angs[0])-np.cos(angs[1])*np.cos(angs[2]))/np.sin(angs[2])],
-                                     [0, 0, abcs[2]*v/np.sin(angs[2])]])
+            v = (1 - (np.cos(angs[0])) ** 2 - (np.cos(angs[1])) ** 2 - (np.cos(angs[2])) ** 2 + 2 * np.cos(angs[0]) * np.cos(angs[1]) * np.cos(angs[2])) ** 0.5
+            trans_matrix = np.array([[abcs[0], abcs[1] * np.cos(angs[2]), abcs[2] * np.cos(angs[1])],
+                                     [0, abcs[1] * np.sin(angs[2]), abcs[2] * (np.cos(angs[0]) - np.cos(angs[1]) * np.cos(angs[2])) / np.sin(angs[2])],
+                                     [0, 0, abcs[2] * v / np.sin(angs[2])]]) 
             
         if l.startswith('ATOM') and ((l[8] in structure) or (l[8] == ' ')):
             symbol = get_symbol(l[5:11])
@@ -1461,18 +1553,18 @@ def read_spf(filename, structure=['A'], return_atom_names=False):
             else:
                 position = [float(l[12:21]),float(l[21:30]),float(l[30:39])]
                 
-            atoms.append(Atom(symbol=symbol,position=position))
+            atoms.append(Atom(symbol = symbol, position = position))
             if return_atom_names:
-                atom_names.append(pdb=l[5:11].strip())
+                atom_names.append(pdb = l[5:11].strip())
     if return_atom_names:
-        return(atoms,atom_names)
+        return(atoms, atom_names)
     else:
         return(atoms)
     
-def read_log(filename,index):
-    atomic_symbols={v:k for k,v in atomic_numbers.iteritems()}
-    with open(filename,'r') as lfile:
-        lines=lfile.readlines()
+def read_log(filename, index):
+    atomic_symbols = {v: k for k, v in atomic_numbers.iteritems()}
+    with open(filename, 'r') as lfile:
+        lines = lfile.readlines()
     mols_list = []
     for n, line in enumerate(lines):
         if ('Input orientation:' in line):
@@ -1485,72 +1577,68 @@ def read_log(filename,index):
                 mol_list.append([symbol, position])
                 i += 1
             mols_list.append(mol_list)
-    atoms=Atoms()
+    atoms = Atoms()
     for mol in mols_list[index]:
-        atoms.append(Atom(symbol=mol[0],position=mol[1]))
+        atoms.append(Atom(symbol = mol[0], position = mol[1]))
     return atoms
     
 def amber_or_pdb(atom_name_list):
-    data_path=get_data_path()
-    with open(data_path+"ambers.txt","r") as ambfile:
+    data_path = get_data_path()
+    with open(data_path + "ambers.txt", "r") as ambfile:
         ambers = [amber.split()[0] for amber in ambfile.readlines() if '#' not in amber]
-    with open(data_path+"pdbs.txt","r") as pdbfile:
+    with open(data_path + "pdbs.txt", "r") as pdbfile:
         pdbs = [pdb.split()[0] for pdb in pdbfile.readlines() if '#' not in pdb]
         
-    pdb_type=sum([(a in pdbs and not a in ambers) for a in atom_name_list])    
-    amber_type=sum([(a in ambers and not a in pdbs) for a in atom_name_list])
+    pdb_type = sum([(a in pdbs and not a in ambers) for a in atom_name_list])    
+    amber_type = sum([(a in ambers and not a in pdbs) for a in atom_name_list])
     
-    if pdb_type>amber_type:
+    if pdb_type > amber_type:
         return('pdb')
     else:
         return('amber')
     
 def _listrepr(atom_list):
-    r,p=[],[]
+    r, p = [], []
     for i in atom_list:
-        if i-1 not in atom_list:
-            p=[i]
-            if i+1 not in atom_list:
-                r+=['{p}'.format(p=p[0])]
-        elif i+1 not in atom_list:
-            p+=[i]
-            r+=['{s}-{e}'.format(s=p[0],e=p[1])]
+        if i - 1 not in atom_list:
+            p = [i]
+            if i + 1 not in atom_list:
+                r += ['{p}'.format(p = p[0])]
+        elif i + 1 not in atom_list:
+            p += [i]
+            r += ['{s}-{e}'.format(s = p[0],e = p[1])]
     return ', '.join(r)
         
 def get_symbols_charges(atom_names, atom_type=''):
-    data_path=get_data_path()
-    with open(data_path+"ambers.txt","r") as ambfile:
+    data_path = get_data_path()
+    with open(data_path + "ambers.txt", "r") as ambfile:
         amber_ref = [amber.split() for amber in ambfile.readlines() if '#' not in amber]
-    with open(data_path+"pdbs.txt","r") as pdbfile:
+    with open(data_path + "pdbs.txt", "r") as pdbfile:
         pdb_ref = [pdb.split() for pdb in pdbfile.readlines() if '#' not in pdb]        
         
-    if isinstance(atom_names,str): atom_names=[atom_names]
+    if isinstance(atom_names, str): atom_names = [atom_names]
     
     if not atom_type:
         atom_type = amber_or_pdb(atom_names)
-    if atom_type=='pdb':
+    if atom_type == 'pdb':
         ref={r[0]: r[1:] for r in pdb_ref}
     else:
         ref={r[0]: r[1:] for r in amber_ref}
     
-    symbols,charges=list(map(list,zip(*[(ref.get(a) if ref.get(a) else [[c for c in a if not c.isdigit()][0],'0']) for a in atom_names])))
+    symbols, charges = list(map(list, zip(*[(ref.get(a) if ref.get(a) else [[c for c in a if not c.isdigit()][0], '0']) for a in atom_names])))
     
-    if len(atom_names)==1:
+    if len(atom_names) == 1:
         return symbols[0], charges[0]
     else:
         return symbols, charges
         
-def peptide(sequence, phi_angles=None, psi_angles=None, omega_angles=None, degrees=True, progress=False):
+def peptide(sequence, phi_angles=None, psi_angles=None, omega_angles=None, degrees=True):
     '''Generates a peptide from its three letter sequence.
     If angles are not provided, the following defaults will be used:
     phi: -57º
     psi: -47º
     omega: 0º'''
     data_path = get_data_path()
-    
-    if progress:
-        overall = FloatProgress(min=0, max=len(sequence), description='Current ({a} {r}/{t}) : '.format(a='   ',r=0,t=len(sequence)))
-        display(overall)
     
     def rest_of_residue(peptide, inc, exc):
 
@@ -1564,10 +1652,10 @@ def peptide(sequence, phi_angles=None, psi_angles=None, omega_angles=None, degre
                 return selection
 
     def set_torsion(peptide, pdbs, res_offsets, angle, resnum):
-        torsion_i = [index for j in range(4) for index, a in enumerate(peptide) if a.pdb == pdbs[j] and a.resnum == res_offsets[j]+resnum]
+        torsion_i = [index for j in range(4) for index, a in enumerate(peptide) if a.pdb == pdbs[j] and a.resnum == res_offsets[j] + resnum]
         inc = [torsion_i[3],torsion_i[2]]
         exc = [torsion_i[1],torsion_i[0]]
-        mask = (peptide.get_resnums() > resnum ) | (np.in1d(range(len(peptide)),rest_of_residue(peptide, inc, exc)))
+        mask = np.in1d(range(len(peptide)),rest_of_residue(peptide, inc, exc))
         peptide.set_dihedral(torsion_i, angle, mask)
         
     def get_angles(angles, name, length, default):
@@ -1580,6 +1668,7 @@ def peptide(sequence, phi_angles=None, psi_angles=None, omega_angles=None, degre
         return(angles)
     
     #Information required to describe the atoms involved in the three dihedral rotations in each residue
+    #PDB Types followed by resnum offsets
     phi_i   = [['N' , 'CA', 'C' , 'O' ], [1, 1, 1, 1]]
     psi_i   = [['C' , 'N' , 'CA', 'C' ], [0, 1, 1, 1]]
     omega_i = [['O' , 'C' , 'N' , 'CA'], [0, 0, 1, 1]]
@@ -1591,7 +1680,6 @@ def peptide(sequence, phi_angles=None, psi_angles=None, omega_angles=None, degre
     omega_angles = get_angles(omega_angles, 'Omega', len(sequence)-1,  0    )
     
     for resnum, s in enumerate(sequence):
-        if progress:overall.description = 'Current ({a} {r}/{t}) : '.format(a=s,r=resnum+1,t=len(sequence))
             
         #Each amino acid in the sequence is loaded as an Atoms object
         aa = read_pdb(data_path+s+'.pdb')
@@ -1630,42 +1718,39 @@ def peptide(sequence, phi_angles=None, psi_angles=None, omega_angles=None, degre
             set_torsion(peptide, phi_i[0]  , phi_i[1]  , phi_angles[resnum-1]  , resnum)
             set_torsion(peptide, psi_i[0]  , psi_i[1]  , psi_angles[resnum-1]  , resnum)
             set_torsion(peptide, omega_i[0], omega_i[1], omega_angles[resnum-1], resnum)
-        if progress:
-            overall.value = resnum+1
             
     return peptide
     
-def _sequence_dict():
-    return {'ALA': 'A', # Alanine
-            'ARG': 'R', # Arginine
-            'ASN': 'N', # Asparagine
-            'ASP': 'D', # Aspartic Acid
-            'CYS': 'C', # Cysteine
-            'GLU': 'E', # Glutamic Acid
-            'GLN': 'Q', # Glutamine
-            'GLY': 'G', # Glycine
-            'HIS': 'H', # Histidine
-            'ILE': 'I', # Isoleucine
-            'LEU': 'L', # Leucine
-            'LYS': 'K', # Lysine
-            'MET': 'M', # Methionine
-            'PHE': 'F', # Phenylanaline
-            'PRO': 'P', # Proline
-            'SER': 'S', # Serine
-            'THR': 'T', # Threonine
-            'TRP': 'W', # Tryptophan
-            'TYR': 'Y', # Tyrosine
-            'VAL': 'V'  # Valine
-            }
+_sequence_dict = {'ALA': 'A', # Alanine
+                  'ARG': 'R', # Arginine
+                  'ASN': 'N', # Asparagine
+                  'ASP': 'D', # Aspartic Acid
+                  'CYS': 'C', # Cysteine
+                  'GLU': 'E', # Glutamic Acid
+                  'GLN': 'Q', # Glutamine
+                  'GLY': 'G', # Glycine
+                  'HIS': 'H', # Histidine
+                  'ILE': 'I', # Isoleucine
+                  'LEU': 'L', # Leucine
+                  'LYS': 'K', # Lysine
+                  'MET': 'M', # Methionine
+                  'PHE': 'F', # Phenylanaline
+                  'PRO': 'P', # Proline
+                  'SER': 'S', # Serine
+                  'THR': 'T', # Threonine
+                  'TRP': 'W', # Tryptophan
+                  'TYR': 'Y', # Tyrosine
+                  'VAL': 'V'} # Valine
+                  
 
 def convert_1_to_3(sequence):
     '''Returns the 3-letter code sequence for a 1-letter code sequence'''
-    sequence_dict = {v:k for k,v in _sequence_dict().iteritems()}
+    sequence_dict = {v:k for k,v in _sequence_dict.iteritems()}
     if isinstance(sequence,str):
         sequence = list(sequence)
     return [sequence_dict.get(s) for s in sequence]
     
 def convert_3_to_1(sequence):
     '''Returns the 1-letter code sequence for a 3-letter code sequence'''
-    sequence_dict = _sequence_dict()
+    sequence_dict = _sequence_dict
     return [sequence_dict.get(s) for s in sequence]

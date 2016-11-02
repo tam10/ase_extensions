@@ -290,32 +290,35 @@ class Atoms(ase.atoms.Atoms):
             self.calculate_bonds()
         return self._bonds
         
-    def expand_selection(self,current_selection=None,mode='bonds',expansion=1,inclusive=True):
+    def expand_selection(self,current_selection=None,mode='bonds',expansion=1,inclusive=True,exclude=None):
         """Returns a list corresponding to the indices of the atoms that satisfy an expansion criterion.
         current_selection:  List of atoms in self to be expanded
         using:
             'bonds':        Expand selection by {expansion (integer)} bonds
             'distances':    Expand selection by {expansion (float)} Angstroms
-        inclusive:          Also returns original atom indices"""
+        inclusive:          Also returns original atom indices
+        exclude:            Don't include atoms in this list (restrict expansion direction). 'bonds' only"""
         
+        if exclude is None:
+            exclude = []
+
         if mode=='bonds':
             
             neighbours=self.get_neighbours()
             expanded_selection=copy.deepcopy(current_selection)
             
             for i in range(expansion):
-                expanded_selection=[i for i,n in enumerate(neighbours) if i in expanded_selection or any([(a in expanded_selection) for a in n])]
+                expanded_selection=[i for i,n in enumerate(neighbours) if (i in expanded_selection or any([(a in expanded_selection) for a in n])) and i not in exclude]
                 
         elif mode=='distances':
             
-            neighbours=self.get_neighbours()
             positions=self.get_positions()
             selected_atoms=self[current_selection]
             expanded_selection=copy.deepcopy(current_selection)
             
             for a in selected_atoms:
                 for i,p in enumerate(positions):
-                    if np.linalg.norm(a.position-p)<expansion:
+                    if np.linalg.norm(a.position-p)<expansion and i not in expanded_selection:
                         expanded_selection+=[i]
         else:
             raise RuntimeError("mode must be either 'bonds' or 'distances'")
@@ -373,12 +376,18 @@ class Atoms(ase.atoms.Atoms):
             return(ase_atoms)
     
     def __delitem__(self, i):
-        ase.Atoms.__delitem__(self,i)
         old_neighbours=self._neighbours
+        if isinstance(i, int):
+            i = [i]
         if old_neighbours:
-            k=[j for j in range(len(self)) if j not in i]
-            new_neighbours=[sorted([k.index(n) for n in old_neighbours[a] if n not in k]) for j,a in enumerate(k)]      
-            self._neighbours=new_neighbours
+            temp = range(len(self))
+            a_map = {a: temp.pop(0) if a not in i else None for a in range(len(self))}
+            new_neighbours = []
+            for j, o_n in enumerate(old_neighbours):
+                if j not in i:
+                    new_neighbours.append([a_map[n] for n in o_n if a_map[n] is not None])
+            self._neighbours = copy.deepcopy(new_neighbours)
+        ase.Atoms.__delitem__(self,i)
         
 def read(fileobj, index=None, format=None):
     """Overrides the old read to generate an ASE Extensions Atoms object"""
