@@ -18,8 +18,10 @@ import warnings
 try:
     from chemview import MolecularViewer, enable_notebook
     enable_notebook()
+    mv_imported = True
 except ImportError:
     warnings.warn(RuntimeWarning("chemview not imported. Viewer not available"))
+    mv_imported = False
     
 class Atom(ae.Atom):   
     """Class for representing a single atom.
@@ -1020,318 +1022,319 @@ class Atoms(ae.Atoms):
             with open(filename, 'w')as fileobj:
                 fileobj.write(filestr)
             
-class Viewer(MolecularViewer):
-    
-    def __init__(self,atoms,width=500,height=500):
+if mv_imported:
+    class Viewer(MolecularViewer):
         
-        ps=atoms.get_positions()/10
-        ts=atoms.get_topology()
-        MolecularViewer.__init__(self,coordinates=ps,topology=ts,width=width,height=height)
-        self.server=None
-        self.client=None
-        self.atoms=atoms
-        self._server_run=None
-        self._motion=None
-        self._zoom=None
-        self._rotatexy=None
-        self._touch_count=None
-        self._touch=None
-        self._vectors=None
-        self._measurements=None
-        self._label_gesture_pos=None
-        self._axes_gesture_pos=None
-        self._label_mode=0
-        
-    def add_overlay(self, atoms, colour_list=None, ball_and_sticks=True, ball_radius=0.05, stick_radius=0.02, opacity=1.0):
-        
-        ps=atoms.get_positions()/10
-        ts=atoms.get_topology()
-        mv=MolecularViewer(ps,topology=ts)
-        
-        if ball_and_sticks:
-            mv.ball_and_sticks(ball_radius=ball_radius,stick_radius=stick_radius,colorlist=colour_list,opacity=opacity)
-        else:
-            mv.lines()
+        def __init__(self,atoms,width=500,height=500):
             
-        for key,value in mv.representations.iteritems():
-            self.add_representation(rep_type=value['rep_type'],options=value['options'],rep_id=key)
+            ps=atoms.get_positions()/10
+            ts=atoms.get_topology()
+            MolecularViewer.__init__(self,coordinates=ps,topology=ts,width=width,height=height)
+            self.server=None
+            self.client=None
+            self.atoms=atoms
+            self._server_run=None
+            self._motion=None
+            self._zoom=None
+            self._rotatexy=None
+            self._touch_count=None
+            self._touch=None
+            self._vectors=None
+            self._measurements=None
+            self._label_gesture_pos=None
+            self._axes_gesture_pos=None
+            self._label_mode=0
             
-    def measure(self, atom_list=None, coords=None, text_size=24, text_colour=0x4444ff, dot_size=18, dot_colour=0xff3333, dot_spacing=0.03):
-        
-        if coords is None:
-            if not isinstance(atom_list,list):
-                raise RuntimeError("atom_list must be a list")
-            coords=self.coordinates[atom_list]
-        
-        ts,ps,ss,cs,vs=[],[],[],[],[]
-        
-        if len(coords)==2:
-            ls=[coords]
-            t='%0.2f' % (np.linalg.norm(coords[0]-coords[1])*10)
-            p=np.average([coords[0],coords[1]],0)
-        elif len(coords)==3:
-            ls=[[coords[0],coords[1]],[coords[2],coords[1]]]
-            p=np.average([c for l in ls for c in l],0)
-        elif len(coords)==4:
-            ls=[[coords[0],coords[1]],[coords[1],coords[2]],[coords[2],coords[3]]]
-            p=np.average([c for l in ls for c in l],0)
-        else:
-            raise RuntimeError("atom_list wrong size ({s}). Must be 2,3 or 4".format(s=len(coords)))
+        def add_overlay(self, atoms, colour_list=None, ball_and_sticks=True, ball_radius=0.05, stick_radius=0.02, opacity=1.0):
             
-        for l in ls:
-            v=l[1]-l[0]
-            vl=np.linalg.norm(v)
-            vn=v/vl
-            vs.append(vn)
+            ps=atoms.get_positions()/10
+            ts=atoms.get_topology()
+            mv=MolecularViewer(ps,topology=ts)
             
-            for n in np.arange(0,vl,dot_spacing):
-                ts.append('•')
-                ps.append(l[0]+n*vn)
-                ss.append(dot_size)
-                cs.append(dot_colour)
-                
-        if len(coords)==3:
-            a=np.dot(vs[0],vs[1])
-            t='%0.1f°' % np.math.degrees(np.math.acos(a))
-        elif len(coords)==4:
-            c0=np.cross(vs[1],vs[0])
-            c1=np.cross(vs[2],vs[1])
-            c0/=np.linalg.norm(c0)
-            c1/=np.linalg.norm(c1)
-            a=np.vdot(c0,c1)
-            t='%0.1f°' % np.math.degrees(np.math.acos(a))
-        
-        ts.append(t)
-        ps.append(p)
-        ss.append(text_size)
-        cs.append(text_colour)
-        ps=np.array(ps)
-        
-        self.labels(text=ts,coordinates=ps,sizes=ss,colorlist=cs)
-        
-    def l(self, text=None, coordinates=None, colorlist=None, sizes=None, fonts=None, opacity=1.0, mode=None, atom_list=None):
-    
-        def to_list(item,length):
-            if not item is None:
-                if isinstance(item,(int,str,float)):
-                    item = [item]
-                elif isinstance(item,(np.generic,np.ndarray)):
-                    item = list(item)
-                if len(item) == 1:
-                    item *= length
-            return(item)
-        
-        if mode is None:
-            self.labels(text, coordinates, colorlist, sizes, fonts, opacity)
-        else:
-            if atom_list is None:
-                atom_list=range(len(self.coordinates))
-                
-            coordinates=self.coordinates[atom_list]
-            
-            sizes = to_list(sizes, len(coordinates))
-            text = to_list(text, len(coordinates))
-            fonts = to_list(fonts, len(coordinates))
-            colorlist = to_list(colorlist, len(coordinates))
-            
-            if mode in ['g','ng','numg','indexg','ig','indicesg']:
-                text=[str(i+1) for i in atom_list]
-            if mode in ['n','num','index','i','indices']:
-                text=[str(i) for i in atom_list]
-            elif mode in ['p','pdb','pdbs']:
-                text=list(self.atoms.get_pdbs())
-            elif mode in ['a','amber','ambers']:
-                text=list(self.atoms.get_ambers())
-            elif mode in ['t','tag','tags']:
-                text=list(self.atoms.get_tags())
-            elif mode in ['c','charge','charges']:
-                text=list(self.atoms.get_amber_charges())
+            if ball_and_sticks:
+                mv.ball_and_sticks(ball_radius=ball_radius,stick_radius=stick_radius,colorlist=colour_list,opacity=opacity)
             else:
-                if text is None:
-                    if len(self.topology.get('atom_types'))>=len(atom_list):
-                        text=[self.topology['atom_types'][i]+str(i+1) for i in atom_list]
-                    else:
-                        text=[str(i+1) for i in atom_list]
+                mv.lines()
                 
-            self.labels(text, coordinates, colorlist, sizes, fonts, opacity)
+            for key,value in mv.representations.iteritems():
+                self.add_representation(rep_type=value['rep_type'],options=value['options'],rep_id=key)
+                
+        def measure(self, atom_list=None, coords=None, text_size=24, text_colour=0x4444ff, dot_size=18, dot_colour=0xff3333, dot_spacing=0.03):
             
-    def b(self, ball_radius=0.05, stick_radius=0.02, colorlist=None, opacity=1.0, charges=None):
-        
-        if not charges is None:
-            colorlist=[]
-            if isinstance(charges,bool):
-                charges=self.atoms.get_amber_charges()
-            norm=max(abs(charges))
-            for c in charges:
-                colorlist.append(256*256*int(255*(c/norm)) if c>0 else int(255*(-c/norm)))
-        
-        
-        self.ball_and_sticks(ball_radius, stick_radius, colorlist, opacity)
-        
-    def average(self,atom_list):
-        if atom_list is None:
-            coords=self.coordinates
-        else:
-            coords=self.coordinates[atom_list]
-        return np.average(coords,0)
+            if coords is None:
+                if not isinstance(atom_list,list):
+                    raise RuntimeError("atom_list must be a list")
+                coords=self.coordinates[atom_list]
             
-    def remote(self,remote_ip="192.168.2.4",outgoing_port=8000,incoming_port=9000,debug=False):
-        import OSC, types
-    
-        try:
-            if self.server:
-                self.server.close()
-        except NameError:
-            pass
-        self.server=OSC.OSCServer(("0.0.0.0",8000))
-        try:
-            if self.client:
-                self.client.close()
-        except NameError:
-            pass
-        self.client=OSC.OSCClient()
-    
-        def stop_button(path,tags,args,source):
-            if path=="/1/stop":
-                if args[0]==1:
-                    self._server_run=False
-        def touch_count(path,tags,args,source):
-            c=path.replace("/1/multixy1/","").replace("/z","")
-            if c.isdigit():
-                self._touch_count[int(c)-1]=args[0]
-                self._vectors[int(c)-1]=np.array([0,0])
-                self._touch[int(c)-1]=np.array([0,0])
-                if int(c)==3 and args[0]==1:
-                    self._label_gesture_pos=np.average([t for t in self._touch],0)
-                if int(c)==4 and args[0]==1:
-                    self._axes_gesture_pos=np.average([t for t in self._touch],0)
-        def multi(path,tags,args,source):
-            c=path.replace("/1/multixy1/","")
-            if c.isdigit():
-                self._vectors[int(c)-1]=self._touch[int(c)-1]-np.array(args) if any(self._touch[int(c)-1]!=[0,0]) else np.array([0,0])
-                self._touch[int(c)-1]=np.array(args)
-        def handle_error(self,request,client_address):
-            pass
-        #def get_delta(self,dimension):
-        #    new,old=[sum([t[dimension] for t in l]) for l in  self._touch]
-        #    return (old-new)/len(self._touch[0])
-        def get_vectors(self):
-            return [v[1]-v[0] for v in self._touch]
-        def cycle_labels(self,direction):
-            #self._label_modes=["none","name_number","number","pdbs","ambers","tags"]
+            ts,ps,ss,cs,vs=[],[],[],[],[]
+            
+            if len(coords)==2:
+                ls=[coords]
+                t='%0.2f' % (np.linalg.norm(coords[0]-coords[1])*10)
+                p=np.average([coords[0],coords[1]],0)
+            elif len(coords)==3:
+                ls=[[coords[0],coords[1]],[coords[2],coords[1]]]
+                p=np.average([c for l in ls for c in l],0)
+            elif len(coords)==4:
+                ls=[[coords[0],coords[1]],[coords[1],coords[2]],[coords[2],coords[3]]]
+                p=np.average([c for l in ls for c in l],0)
+            else:
+                raise RuntimeError("atom_list wrong size ({s}). Must be 2,3 or 4".format(s=len(coords)))
+                
+            for l in ls:
+                v=l[1]-l[0]
+                vl=np.linalg.norm(v)
+                vn=v/vl
+                vs.append(vn)
+                
+                for n in np.arange(0,vl,dot_spacing):
+                    ts.append('•')
+                    ps.append(l[0]+n*vn)
+                    ss.append(dot_size)
+                    cs.append(dot_colour)
+                    
+            if len(coords)==3:
+                a=np.dot(vs[0],vs[1])
+                t='%0.1f°' % np.math.degrees(np.math.acos(a))
+            elif len(coords)==4:
+                c0=np.cross(vs[1],vs[0])
+                c1=np.cross(vs[2],vs[1])
+                c0/=np.linalg.norm(c0)
+                c1/=np.linalg.norm(c1)
+                a=np.vdot(c0,c1)
+                t='%0.1f°' % np.math.degrees(np.math.acos(a))
+            
+            ts.append(t)
+            ps.append(p)
+            ss.append(text_size)
+            cs.append(text_colour)
+            ps=np.array(ps)
+            
+            self.labels(text=ts,coordinates=ps,sizes=ss,colorlist=cs)
+            
+        def l(self, text=None, coordinates=None, colorlist=None, sizes=None, fonts=None, opacity=1.0, mode=None, atom_list=None):
         
+            def to_list(item,length):
+                if not item is None:
+                    if isinstance(item,(int,str,float)):
+                        item = [item]
+                    elif isinstance(item,(np.generic,np.ndarray)):
+                        item = list(item)
+                    if len(item) == 1:
+                        item *= length
+                return(item)
+            
+            if mode is None:
+                self.labels(text, coordinates, colorlist, sizes, fonts, opacity)
+            else:
+                if atom_list is None:
+                    atom_list=range(len(self.coordinates))
+                    
+                coordinates=self.coordinates[atom_list]
+                
+                sizes = to_list(sizes, len(coordinates))
+                text = to_list(text, len(coordinates))
+                fonts = to_list(fonts, len(coordinates))
+                colorlist = to_list(colorlist, len(coordinates))
+                
+                if mode in ['g','ng','numg','indexg','ig','indicesg']:
+                    text=[str(i+1) for i in atom_list]
+                if mode in ['n','num','index','i','indices']:
+                    text=[str(i) for i in atom_list]
+                elif mode in ['p','pdb','pdbs']:
+                    text=list(self.atoms.get_pdbs())
+                elif mode in ['a','amber','ambers']:
+                    text=list(self.atoms.get_ambers())
+                elif mode in ['t','tag','tags']:
+                    text=list(self.atoms.get_tags())
+                elif mode in ['c','charge','charges']:
+                    text=list(self.atoms.get_amber_charges())
+                else:
+                    if text is None:
+                        if len(self.topology.get('atom_types'))>=len(atom_list):
+                            text=[self.topology['atom_types'][i]+str(i+1) for i in atom_list]
+                        else:
+                            text=[str(i+1) for i in atom_list]
+                    
+                self.labels(text, coordinates, colorlist, sizes, fonts, opacity)
+                
+        def b(self, ball_radius=0.05, stick_radius=0.02, colorlist=None, opacity=1.0, charges=None):
+            
+            if not charges is None:
+                colorlist=[]
+                if isinstance(charges,bool):
+                    charges=self.atoms.get_amber_charges()
+                norm=max(abs(charges))
+                for c in charges:
+                    colorlist.append(256*256*int(255*(c/norm)) if c>0 else int(255*(-c/norm)))
+            
+            
+            self.ball_and_sticks(ball_radius, stick_radius, colorlist, opacity)
+            
+        def average(self,atom_list):
+            if atom_list is None:
+                coords=self.coordinates
+            else:
+                coords=self.coordinates[atom_list]
+            return np.average(coords,0)
+                
+        def remote(self,remote_ip="192.168.2.4",outgoing_port=8000,incoming_port=9000,debug=False):
+            import OSC, types
         
-            msg=OSC.OSCMessage("/1/led1/color")
-            map(msg.append, ["red"])
-            self.client.sendto(msg, (remote_ip,incoming_port), timeout=0)
+            try:
+                if self.server:
+                    self.server.close()
+            except NameError:
+                pass
+            self.server=OSC.OSCServer(("0.0.0.0",8000))
+            try:
+                if self.client:
+                    self.client.close()
+            except NameError:
+                pass
+            self.client=OSC.OSCClient()
+        
+            def stop_button(path,tags,args,source):
+                if path=="/1/stop":
+                    if args[0]==1:
+                        self._server_run=False
+            def touch_count(path,tags,args,source):
+                c=path.replace("/1/multixy1/","").replace("/z","")
+                if c.isdigit():
+                    self._touch_count[int(c)-1]=args[0]
+                    self._vectors[int(c)-1]=np.array([0,0])
+                    self._touch[int(c)-1]=np.array([0,0])
+                    if int(c)==3 and args[0]==1:
+                        self._label_gesture_pos=np.average([t for t in self._touch],0)
+                    if int(c)==4 and args[0]==1:
+                        self._axes_gesture_pos=np.average([t for t in self._touch],0)
+            def multi(path,tags,args,source):
+                c=path.replace("/1/multixy1/","")
+                if c.isdigit():
+                    self._vectors[int(c)-1]=self._touch[int(c)-1]-np.array(args) if any(self._touch[int(c)-1]!=[0,0]) else np.array([0,0])
+                    self._touch[int(c)-1]=np.array(args)
+            def handle_error(self,request,client_address):
+                pass
+            #def get_delta(self,dimension):
+            #    new,old=[sum([t[dimension] for t in l]) for l in  self._touch]
+            #    return (old-new)/len(self._touch[0])
+            def get_vectors(self):
+                return [v[1]-v[0] for v in self._touch]
+            def cycle_labels(self,direction):
+                #self._label_modes=["none","name_number","number","pdbs","ambers","tags"]
             
-            self._label_mode+=direction
-            if self._label_mode==-1:
-                self._label_mode=5
-            if self._label_mode==6:
-                self._label_mode=0
             
-            self.remove_labels()
-            if self._label_mode==1:
-                self.labels()
-            elif self._label_mode==2:
-                self.labels(text=[str(i+1) for i in range(len(self.coordinates))])
-            elif self._label_mode==3:
-                self.labels(text=list(self.atoms.get_pdbs()))
-            elif self._label_mode==4:
-                self.labels(text=list(self.atoms.get_ambers()))
-            elif self._label_mode==5:
-                self.labels(text=list(self.atoms.get_tags()))
+                msg=OSC.OSCMessage("/1/led1/color")
+                map(msg.append, ["red"])
+                self.client.sendto(msg, (remote_ip,incoming_port), timeout=0)
+                
+                self._label_mode+=direction
+                if self._label_mode==-1:
+                    self._label_mode=5
+                if self._label_mode==6:
+                    self._label_mode=0
+                
+                self.remove_labels()
+                if self._label_mode==1:
+                    self.labels()
+                elif self._label_mode==2:
+                    self.labels(text=[str(i+1) for i in range(len(self.coordinates))])
+                elif self._label_mode==3:
+                    self.labels(text=list(self.atoms.get_pdbs()))
+                elif self._label_mode==4:
+                    self.labels(text=list(self.atoms.get_ambers()))
+                elif self._label_mode==5:
+                    self.labels(text=list(self.atoms.get_tags()))
+                
+                msg=OSC.OSCMessage("/1/led1/color")
+                map(msg.append, ["green"])
+                self.client.sendto(msg, (remote_ip,incoming_port), timeout=0)
+                
+            def update_debug(self):
+                for i,t in enumerate(self._vectors):
+                    
+                    msg=OSC.OSCMessage("/1/l"+str(i))
+                    map(msg.append, [self._touch_count[i]])
+                    self.client.sendto(msg, (remote_ip,incoming_port), timeout=0)
+                    
+                    msg=OSC.OSCMessage("/1/x"+str(i))
+                    map(msg.append, ["%6.5f" % t[0]])
+                    self.client.sendto(msg, (remote_ip,incoming_port), timeout=0)
+                    
+                    msg=OSC.OSCMessage("/1/y"+str(i))
+                    map(msg.append, ["%6.5f" % t[1]])
+                    self.client.sendto(msg, (remote_ip,incoming_port), timeout=0)
+                
+        
+            self.server.addMsgHandler("/1/stop",stop_button)
+            self.server.addMsgHandler("/1/multixy1/1/z",touch_count)
+            self.server.addMsgHandler("/1/multixy1/2/z",touch_count)
+            self.server.addMsgHandler("/1/multixy1/3/z",touch_count)
+            self.server.addMsgHandler("/1/multixy1/1",multi)
+            self.server.addMsgHandler("/1/multixy1/2",multi)
+            self.server.addMsgHandler("/1/multixy1/3",multi)
+        
+            self.server.handle_error=types.MethodType(handle_error,self.server)
+        
+            self.server.socket.settimeout(1)
             
+            self._touch_count=[0]*4
+            self._touch=[np.array([0]*2)]*4
+            self._vectors=[np.array([0]*2)]*4
+            self._server_run=True
+            msg=OSC.OSCMessage("/1/led1")
+            map(msg.append, [1])
+            self.client.sendto(msg, (remote_ip,incoming_port), timeout=0) 
+                
             msg=OSC.OSCMessage("/1/led1/color")
             map(msg.append, ["green"])
-            self.client.sendto(msg, (remote_ip,incoming_port), timeout=0)
-            
-        def update_debug(self):
-            for i,t in enumerate(self._vectors):
-                
-                msg=OSC.OSCMessage("/1/l"+str(i))
-                map(msg.append, [self._touch_count[i]])
-                self.client.sendto(msg, (remote_ip,incoming_port), timeout=0)
-                
-                msg=OSC.OSCMessage("/1/x"+str(i))
-                map(msg.append, ["%6.5f" % t[0]])
-                self.client.sendto(msg, (remote_ip,incoming_port), timeout=0)
-                
-                msg=OSC.OSCMessage("/1/y"+str(i))
-                map(msg.append, ["%6.5f" % t[1]])
-                self.client.sendto(msg, (remote_ip,incoming_port), timeout=0)
-            
-    
-        self.server.addMsgHandler("/1/stop",stop_button)
-        self.server.addMsgHandler("/1/multixy1/1/z",touch_count)
-        self.server.addMsgHandler("/1/multixy1/2/z",touch_count)
-        self.server.addMsgHandler("/1/multixy1/3/z",touch_count)
-        self.server.addMsgHandler("/1/multixy1/1",multi)
-        self.server.addMsgHandler("/1/multixy1/2",multi)
-        self.server.addMsgHandler("/1/multixy1/3",multi)
-    
-        self.server.handle_error=types.MethodType(handle_error,self.server)
-    
-        self.server.socket.settimeout(1)
+            self.client.sendto(msg, (remote_ip,incoming_port), timeout=0) 
         
-        self._touch_count=[0]*4
-        self._touch=[np.array([0]*2)]*4
-        self._vectors=[np.array([0]*2)]*4
-        self._server_run=True
-        msg=OSC.OSCMessage("/1/led1")
-        map(msg.append, [1])
-        self.client.sendto(msg, (remote_ip,incoming_port), timeout=0) 
-            
-        msg=OSC.OSCMessage("/1/led1/color")
-        map(msg.append, ["green"])
-        self.client.sendto(msg, (remote_ip,incoming_port), timeout=0) 
-    
-        while self._server_run:
-    
-            self.server.handle_request()
-            vs=self._vectors
-            if sum(self._touch_count)==1: #Rotate
-                xrot=vs[0][0]
-                yrot=vs[0][1]
-                self._remote_call('rotateLeft',angle=xrot)
-                self._remote_call('rotateUp',angle=yrot)
-            elif sum(self._touch_count)==2: #Zoom and pan
-                ns=[v/np.linalg.norm(v) if np.linalg.norm(v)!=0 else np.array([0,0]) for v in vs]
+            while self._server_run:
+        
+                self.server.handle_request()
+                vs=self._vectors
+                if sum(self._touch_count)==1: #Rotate
+                    xrot=vs[0][0]
+                    yrot=vs[0][1]
+                    self._remote_call('rotateLeft',angle=xrot)
+                    self._remote_call('rotateUp',angle=yrot)
+                elif sum(self._touch_count)==2: #Zoom and pan
+                    ns=[v/np.linalg.norm(v) if np.linalg.norm(v)!=0 else np.array([0,0]) for v in vs]
+                    
+                    if np.dot(ns[0],ns[1])<-0.5: #Zoom
+                        old_sep=np.linalg.norm(self._touch[1]-self._touch[0])
+                        new_sep=np.linalg.norm(self._touch[1]+vs[1]-self._touch[0]-vs[0])
+                        zoom=(new_sep-old_sep)/2
+                        if zoom > 0:
+                            self._remote_call('dollyOut',dollyScale=1+(zoom))
+                        elif zoom < 0:
+                            self._remote_call('dollyIn',dollyScale=1-(zoom))
+                            
+                    elif np.dot(ns[0],ns[1])>0.5: #Pan
+                        panx=np.average([vs[0],vs[1]],0)[0]*100
+                        pany=np.average([vs[0],vs[1]],0)[1]*100
+                        self._remote_call('pan',deltaX=panx,deltaY=pany)
+                elif sum(self._touch_count)==3: #Change labels and axes
+                    if self._label_gesture_pos is not None:
+                        current_ave_pos=np.average([t for t in self._touch],0)                   
+                        if np.linalg.norm(current_ave_pos[1]-self._label_gesture_pos[1])>0.3:
+                            cycle_labels(self,1)                 
+                        elif np.linalg.norm(current_ave_pos[1]-self._label_gesture_pos[1])<-0.3:
+                            cycle_labels(self,-1)
+                    if self._axes_gesture_pos is not None:
+                        current_ave_pos=np.average([t for t in self._touch],0)                   
+                        if abs(np.linalg.norm(current_ave_pos[1]-self._axes_gesture_pos[1]))>0.3:
+                            self.toggle_axes()
                 
-                if np.dot(ns[0],ns[1])<-0.5: #Zoom
-                    old_sep=np.linalg.norm(self._touch[1]-self._touch[0])
-                    new_sep=np.linalg.norm(self._touch[1]+vs[1]-self._touch[0]-vs[0])
-                    zoom=(new_sep-old_sep)/2
-                    if zoom > 0:
-                        self._remote_call('dollyOut',dollyScale=1+(zoom))
-                    elif zoom < 0:
-                        self._remote_call('dollyIn',dollyScale=1-(zoom))
-                        
-                elif np.dot(ns[0],ns[1])>0.5: #Pan
-                    panx=np.average([vs[0],vs[1]],0)[0]*100
-                    pany=np.average([vs[0],vs[1]],0)[1]*100
-                    self._remote_call('pan',deltaX=panx,deltaY=pany)
-            elif sum(self._touch_count)==3: #Change labels and axes
-                if self._label_gesture_pos is not None:
-                    current_ave_pos=np.average([t for t in self._touch],0)                   
-                    if np.linalg.norm(current_ave_pos[1]-self._label_gesture_pos[1])>0.3:
-                        cycle_labels(self,1)                 
-                    elif np.linalg.norm(current_ave_pos[1]-self._label_gesture_pos[1])<-0.3:
-                        cycle_labels(self,-1)
-                if self._axes_gesture_pos is not None:
-                    current_ave_pos=np.average([t for t in self._touch],0)                   
-                    if abs(np.linalg.norm(current_ave_pos[1]-self._axes_gesture_pos[1]))>0.3:
-                        self.toggle_axes()
-            
-            if debug:
-                update_debug(self)
-    
-        msg=OSC.OSCMessage("/1/led1")
-        map(msg.append, [0])
-        self.client.sendto(msg, (remote_ip,incoming_port), timeout=0)
-    
-        self.server.close()
+                if debug:
+                    update_debug(self)
+        
+            msg=OSC.OSCMessage("/1/led1")
+            map(msg.append, [0])
+            self.client.sendto(msg, (remote_ip,incoming_port), timeout=0)
+        
+            self.server.close()
             
     
 def get_data_path():
