@@ -14,8 +14,6 @@ import copy
 import random
 import string
 import warnings
-from IPython.display import display
-from IPython.html.widgets import FloatProgress
 
 try:
     from chemview import MolecularViewer, enable_notebook
@@ -607,7 +605,7 @@ class Atoms(ae.Atoms):
         try:
             old_mask = [[a.index for a in old_res if a.pdb == pdb][0] for pdb in pdb_list]
         except IndexError:
-            raise RuntimeError('resnum doesn\t refer to a residue with pdb types N, CA and C')
+            raise RuntimeError('resnum doesn\'t refer to a residue with pdb types N, CA and C')
         try:
             new_mask = [[a.index for a in new_res if a.pdb == pdb][0] for pdb in pdb_list]
         except IndexError:
@@ -1356,7 +1354,7 @@ def read_pdb(fileobj, index=-1, alt_structure='A'):
 
     data_path = get_data_path()
     with open(data_path + "ambers.txt", 'r') as amberobj:
-        amber_ref = [amber.split() for amber in amberobj.readlines() if '#' not in amber]        
+        amber_ref = [amber_line.split() for amber_line in amberobj.readlines() if '#' not in amber_line]        
     
     images = []
     atoms = Atoms()
@@ -1370,9 +1368,11 @@ def read_pdb(fileobj, index=-1, alt_structure='A'):
                 charge = 0
                 atom_type = line[0:6].strip()
                 try:
-                    symbol, charge = [(amber[1], amber[2]) for amber in amber_ref if amber[0] == line[76:78].strip()]
+                    symbol, charge = ([amber[1], int(amber[2])] for amber in amber_ref if amber[0] == line[76:78].strip()).next()
                 except ValueError:
-                    symbol = line[12:16].strip()[0]
+                    symbol = line[12:16]
+                    if symbol[0] in ["C", "H", "N", "O"]:
+                        symbol = symbol[0]
                 pdb = line[12:16].strip()
                 words = line[30:55].split()
                 position = np.array([float(words[0]), 

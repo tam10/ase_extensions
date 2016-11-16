@@ -62,4 +62,5 @@ QC          Cs          2
 QK          K           1           
 QL          Li          1           
 QN          Na          1           
-QR          Rb          1           
+QR          Rb          1    
+FE          Fe          2       
