@@ -1372,8 +1372,8 @@ def read_pdb(fileobj, index=-1, alt_structure='A'):
                 atom_type = line[0:6].strip()
                 try:
                     symbol, charge = ([amber[1], int(amber[2])] for amber in amber_ref if amber[0] == line[76:78].strip()).next()
-                except ValueError:
-                    symbol = line[12:16]
+                except (ValueError, StopIteration):
+                    symbol = line[12:16].strip()
                     if symbol[0] in ["C", "H", "N", "O"]:
                         symbol = symbol[0]
                 pdb = line[12:16].strip()
