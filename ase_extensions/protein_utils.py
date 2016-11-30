@@ -14,6 +14,7 @@ import copy
 import random
 import string
 import warnings
+import lxml.builder
 
 try:
     from chemview import MolecularViewer, enable_notebook
@@ -764,7 +765,10 @@ class Atoms(ae.Atoms):
         
         atoms = atoms[atom_list]
         if indices_in_tags: atoms.set_tags(atom_list)
-        return self.__class__(atoms)
+        new_atoms = self.__class__(atoms)
+        new_atoms._neighbours = copy.deepcopy(atoms._neighbours)
+        return new_atoms
+        
         
     def remove(self, symbols=None, atom_types=None, ambers=None, pdbs=None, partial_pdbs=None, residues=None, resnums=None, chains=None, tags=None, indices_in_tags=False):
         """Returns a copy whose properties do not match the arguments.
@@ -786,8 +790,10 @@ class Atoms(ae.Atoms):
                     atom_list = filter(lambda i: getattr(atoms[i],key) not in set(value),atom_list)
         
         atoms = atoms[atom_list]
-#        if indices_in_tags: atoms.set_tags(atom_list)
-        return self.__class__(atoms)
+        if indices_in_tags: atoms.set_tags(atom_list)
+        new_atoms = self.__class__(atoms)
+        new_atoms._neighbours = copy.deepcopy(atoms._neighbours)
+        return new_atoms
         
     def get_backbone(self):
         """Returns a copy of the backbone atoms (PDB = 'C', 'CA', 'N')"""
@@ -1021,6 +1027,41 @@ class Atoms(ae.Atoms):
         else:
             with open(filename, 'w')as fileobj:
                 fileobj.write(filestr)
+                
+    def write_xat(self, filename=''):
+        E = lxml.builder.ElementMaker()
+        root = E.atoms()
+    
+        def append_attribute(element, atom, attribute):
+            if not hasattr(atom, attribute):
+                return
+            attr = getattr(atom, attribute)
+            if attr is not None:
+                if isinstance(attr, (str, int, float)):
+                    element.append(getattr(E, attribute)(str(attr), type = type(attr).__name__))
+                elif isinstance(attr, (np.ndarray, np.generic, list)):
+                    element.append(getattr(E, attribute)(" ".join([str(a) for a in attr]), type = type(attr).__name__))
+    
+        neighbours = self._neighbours
+    
+        attributes = [
+            "symbol", "pdb", "amber", "position", "charge", "atom_type",
+            "amber_charge", "residue", "resnum", "chain", "tag"
+        ]
+    
+        for i, atom in enumerate(self):
+            x_atom = E.atom(index = str(i))
+    
+            for attribute in attributes:
+                append_attribute(x_atom, atom, attribute)
+            if neighbours:
+                n = neighbours[i]
+                x_atom.append(E.neighbours(" ".join([str(a) for a in n]), type = type(n).__name__))
+    
+            root.append(x_atom)
+    
+        with open(filename, "w") as xat_obj:
+            xat_obj.write(lxml.etree.tostring(root, pretty_print = True))
             
 if mv_imported:
     class Viewer(MolecularViewer):
@@ -1374,7 +1415,9 @@ def read_pdb(fileobj, index=-1, alt_structure='A'):
                     symbol, charge = ([amber[1], int(amber[2])] for amber in amber_ref if amber[0] == line[76:78].strip()).next()
                 except (ValueError, StopIteration):
                     symbol = line[12:16].strip()
-                    if symbol[0] in ["C", "H", "N", "O"]:
+                    if symbol[0].isdigit():
+                        symbol = symbol[1:]
+                    if symbol[0] in ["C", "H", "N", "O", "S", "P"]:
                         symbol = symbol[0]
                 pdb = line[12:16].strip()
                 words = line[30:55].split()
@@ -1585,6 +1628,66 @@ def read_log(filename, index):
         atoms.append(Atom(symbol = mol[0], position = mol[1]))
     return atoms
     
+def read_xat(filename):
+    root = lxml.etree.parse(filename)
+
+    type_dict = {
+        "str": str,
+        "string_": str,
+        "int": int,
+        "int64": int,
+        "float": float,
+        "float64": float,
+        "list": list,
+        "ndarray": np.array
+    }
+
+    def get_attribute(element, attribute):
+        x_attr = x_atom.find(attribute)
+        x_type = x_attr.attrib["type"]
+        x_value = x_attr.text
+        if x_type == "list":
+            x_value = x_value.split()
+            if all([v.isdigit() for v in x_value]):
+                return [int(v) for v in x_value]
+            else:
+                try:
+                    x_value = [float(v) for v in x_value]
+                except:
+                    pass
+                return x_value
+        elif x_type == "ndarray":
+            x_value = x_value.split()
+            try:
+                x_value = [float(v) for v in x_value]
+            except:
+                pass
+            return type_dict[x_type](x_value)
+        return type_dict[x_type](x_value)
+
+
+    attributes = [
+        "symbol", "pdb", "amber", "position", "charge", "atom_type",
+        "amber_charge", "residue", "resnum", "chain", "tag"
+    ]
+
+    atoms = Atoms()
+    neighbours = []
+
+    for x_atom in root.findall("atom"):
+        attribute_dict = {}
+        for attribute in attributes:
+            try:
+                value = get_attribute(x_atom, attribute)
+                attribute_dict[attribute] = value
+            except:
+                pass
+
+        neighbours.append(get_attribute(x_atom, "neighbours"))
+        atoms.append(Atom(**attribute_dict))
+    atoms._neighbours = neighbours
+    return atoms
+    
 def amber_or_pdb(atom_name_list):
     data_path = get_data_path()
     with open(data_path + "ambers.txt", "r") as ambfile:
@@ -1635,94 +1738,108 @@ def get_symbols_charges(atom_names, atom_type=''):
     else:
         return symbols, charges
         
-def peptide(sequence, phi_angles=None, psi_angles=None, omega_angles=None, degrees=True):
-    '''Generates a peptide from its three letter sequence.
-    If angles are not provided, the following defaults will be used:
-    phi: -57º
-    psi: -47º
-    omega: 0º'''
-    data_path = get_data_path()
-    
-    def rest_of_residue(peptide, inc, exc):
-
-        selection = copy.deepcopy(inc)
-        resnum = peptide[inc[1]].resnum
-        while True:
-            new_selection = [i for i in peptide.expand_selection(selection,inclusive=False) if peptide[i].resnum == resnum and i not in exc]
-            if len(new_selection)>0:
-                selection += new_selection
-            else:
-                return selection
-
-    def set_torsion(peptide, pdbs, res_offsets, angle, resnum):
-        torsion_i = [index for j in range(4) for index, a in enumerate(peptide) if a.pdb == pdbs[j] and a.resnum == res_offsets[j] + resnum]
-        inc = [torsion_i[3],torsion_i[2]]
-        exc = [torsion_i[1],torsion_i[0]]
-        mask = np.in1d(range(len(peptide)),rest_of_residue(peptide, inc, exc))
-        peptide.set_dihedral(torsion_i, angle, mask)
+class Peptide_Builder():
+    def __init__(self):
+        self.clear()
         
-    def get_angles(angles, name, length, default):
-        if angles is None:
-            angles = [default]*(len(sequence)-1)
-        elif degrees:
-            angles = [np.deg2rad(a) for a in angles]
-        if len(angles) != length:
-            raise RuntimeError('Incorrect length for {n} angles ({al}) - should be {cl}.'.format(n=name, al=len(angles), cl=length))
-        return(angles)
-    
-    #Information required to describe the atoms involved in the three dihedral rotations in each residue
-    #PDB Types followed by resnum offsets
-    phi_i   = [['N' , 'CA', 'C' , 'O' ], [1, 1, 1, 1]]
-    psi_i   = [['C' , 'N' , 'CA', 'C' ], [0, 1, 1, 1]]
-    omega_i = [['O' , 'C' , 'N' , 'CA'], [0, 0, 1, 1]]
-    
-    #Psis, phis and omegas are checked and converted to radians if necessary
-    #If they don't exist, the defaults -57º, -47º and 0º are used respectively
-    phi_angles   = get_angles(phi_angles  , 'Phi'  , len(sequence)-1, -0.995)
-    psi_angles   = get_angles(psi_angles  , 'Psi'  , len(sequence)-1, -0.820)
-    omega_angles = get_angles(omega_angles, 'Omega', len(sequence)-1,  0    )
-    
-    for resnum, s in enumerate(sequence):
-            
-        #Each amino acid in the sequence is loaded as an Atoms object
-        aa = read_pdb(data_path+s+'.pdb')
-        aa.set_resnums(resnum+1)
-        
-        
-        #Proline contains an additional hydrogen on the nitrogen group
-        if s == 'PRO':
-            aa = aa.remove(pdbs='H')
-        
-        if resnum == 0:
-            peptide = aa.take()
-            
+    def add_chain(self, sequence, phi_angle=180, psi_angle=180, omega_angle=180):
+        if isinstance(sequence, str):
+            new_sequence = convert_1_to_3(sequence)
         else:
-            #This is where the new N sits
-            oc_pos = peptide.take(pdbs = 'OC').positions[-1]
-            offset =  oc_pos - aa.take(pdbs = 'N').positions[0]
-            aa.positions += offset
-            
-            #Terminal O-H of previous residue is removed and replaced by new amino acid
-            peptide = peptide.remove(pdbs = ['OC','HOC'])
-            peptide += aa
-            
-            #The new amino acid is rotated to be sp2 with respect to the peptide
-            #Atoms on either side are selected to create a mask for rotation
-            d_is = [index for j in range(4) for index, a in enumerate(peptide) if a.pdb == omega_i[0][j] and a.resnum == omega_i[1][j]+resnum]
-            inc = [d_is[3],d_is[2]]
-            exc = [d_is[1],d_is[0]]
-            mask = (peptide.get_resnums() > resnum) | (np.in1d(range(len(peptide)),rest_of_residue(peptide, inc, exc)))
-            
-            angle = 2.1
-            peptide.set_angle([d_is[0], d_is[1], d_is[2]], angle, mask)
-            peptide.set_angle([d_is[1], d_is[2], d_is[3]], angle, mask)
-            
-            #Phi, psi and omega are set here
-            set_torsion(peptide, phi_i[0]  , phi_i[1]  , phi_angles[resnum-1]  , resnum)
-            set_torsion(peptide, psi_i[0]  , psi_i[1]  , psi_angles[resnum-1]  , resnum)
-            set_torsion(peptide, omega_i[0], omega_i[1], omega_angles[resnum-1], resnum)
-            
-    return peptide
+            new_sequence = sequence
+        for i, s in enumerate(new_sequence):
+            if s is None:
+                raise Exception("Invalid residue in sequence: " + sequence[i])
+        self._sequence += [[s, phi_angle, psi_angle, omega_angle] for s in new_sequence]
+        
+    def add_straight_chain(self, sequence):
+        self.add_chain(sequence)
+        
+    def add_alpha_helix(self, sequence):
+        self.add_chain(sequence, -60, -40)
+        
+    def add_beta_sheet(self, sequence):
+        self.add_chain(sequence, -135, 135)
+        
+    def add_3_10_helix(self, sequence):
+        self.add_chain(sequence, -74, -4)
+        
+    def add_pi_helix(self, sequence):
+        self.add_chain(sequence, -57, -70)
+        
+    def clear(self):
+        self._sequence = []
+        self._resnum = 1
+        
+    def generate(self):
+        data_path = get_data_path()
+        
+        def get_index(pdb, resnum):
+            ats = self._sub_peptide.take(pdbs=pdb)
+            for at in ats:
+                if at.resnum == resnum:
+                    return at.tag
+
+        for r, [s, phi_angle, psi_angle, omega_angle] in enumerate(self._sequence):
+            self.resnum = resnum = r + 1
+            #Each amino acid in the sequence is loaded as an Atoms object
+            aa = read_xat(data_path + s + '.xat')
+            aa.set_resnums(resnum)
+            aa.calculate_neighbours()
+            dr = np.deg2rad
+
+            if resnum == 1:
+                self.peptide = aa.take()
+            else:
+                #This is where the new N sits
+                oc_pos = self.peptide.take(pdbs = 'OC').positions[-1]
+                offset =  oc_pos - aa.take(pdbs = 'N').positions[0]
+                aa.positions += offset
+
+                #Terminal O-H of previous residue is removed and replaced by new amino acid
+                self.peptide = self.peptide.remove(pdbs = ['OC','HOC', 'HC'])
+                aa = aa.remove(pdbs = "2H")
+                self.peptide += aa
+
+                self._sub_peptide = self.peptide.take(resnums = [resnum - 1, resnum], indices_in_tags = True)
+                
+                n   = get_index("N" , resnum - 1)
+                ca  = get_index("CA", resnum - 1)
+                c   = get_index("C" , resnum - 1)
+                o   = get_index("O" , resnum - 1)
+                n1  = get_index("N" , resnum    )
+                h1  = get_index("1H", resnum    )
+                ca1 = get_index("CA", resnum    )
+                c1  = get_index("C" , resnum    )
+                
+                res_mask = (self.peptide.get_resnums() >= resnum)
+                phi_mask = res_mask | np.in1d(np.array(range(len(self.peptide))), h1)
+                psi_mask = res_mask ^ np.in1d(np.array(range(len(self.peptide))), [c, o])
+                h_mask = np.in1d(np.array(range(len(self.peptide))), h1)
+                
+                #Add terminal atoms to neighbours list
+                self.peptide._neighbours[c ].append(n1)
+                self.peptide._neighbours[n1].append(c )
+
+                #The new amino acid is rotated to be sp2 with respect to the peptide
+                #Atoms on either side are selected to create a mask for rotation
+                self.peptide.set_angle([ca, c , n1 ], dr(120), res_mask)
+                self.peptide.set_angle([c , n1, ca1], dr(120), res_mask)
+                
+                #Phi, psi and omega are set here
+                self.peptide.set_dihedral([n , ca, c  , n1 ], dr(psi_angle)  , psi_mask)
+                self.peptide.set_dihedral([ca, c , n1 , ca1], dr(omega_angle), res_mask)
+                self.peptide.set_dihedral([c , n1, ca1, c1 ], dr(phi_angle)  , phi_mask)
+                
+                #Fix amide H
+                self.peptide.set_dihedral([o, c, n1, h1], np.pi, h_mask)
+                h_angle = self.peptide.get_angle([o, c, n1])
+                self.peptide.set_angle([c, n1, h1], h_angle, h_mask)
+                
+                #Correct amber type for amide N
+                self.peptide[n1].amber = 'N'
+
+        return self.peptide
     
 _sequence_dict = {'ALA': 'A', # Alanine
                   'ARG': 'R', # Arginine

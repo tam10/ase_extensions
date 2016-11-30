@@ -372,8 +372,24 @@ class Atoms(ase.atoms.Atoms):
                 #renumber neighbours with map
                 old_neighbours=self._neighbours
                 new_neighbours=[sorted([i.index(n) for n in old_neighbours[a] if n in i]) for j,a in enumerate(i)]
-                ase_atoms._neigbours=new_neighbours
+                ase_atoms._neighbours=new_neighbours
             return(ase_atoms)
+        
+    def __iadd__(self, other):
+        ase_atoms = ase.Atoms.extend(self, other)
+        atoms_ns = self._neighbours
+        if atoms_ns:
+            try:
+                other_ns = other._neighbours
+                if not other_ns:
+                    other_ns = other.get_neighbours()
+            except AttributeError:
+                other_ns = [[]]
+
+            l = len(atoms_ns)
+            ase_atoms._neighbours = atoms_ns + [[a + l for a in n] for n in other_ns]
+            
+        return ase_atoms
     
     def __delitem__(self, i):
         old_neighbours=self._neighbours
