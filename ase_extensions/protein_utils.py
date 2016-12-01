@@ -280,6 +280,7 @@ class Atoms(ae.Atoms):
             
         os.chdir(dirname)
         temp_atoms = self.take()
+        temp_atoms._neighbours = []
         temp_atoms.write_pdb(orig)
         os.system('antechamber -fi pdb -i {i} -fo mol2 -o {o} -at amber'.format(i = orig, o = new))
         amber_pdb_atoms = read_mol2(new, atom_col_1 = 'pdb', atom_col_2 = 'amber')
