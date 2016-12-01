@@ -283,7 +283,10 @@ class Atoms(ae.Atoms):
         temp_atoms._neighbours = []
         temp_atoms.write_pdb(orig)
         os.system('antechamber -fi pdb -i {i} -fo mol2 -o {o} -at amber'.format(i = orig, o = new))
-        amber_pdb_atoms = read_mol2(new, atom_col_1 = 'pdb', atom_col_2 = 'amber')
+        try:
+            amber_pdb_atoms = read_mol2(new, atom_col_1 = 'pdb', atom_col_2 = 'amber')
+        except IOError:
+            raise RuntimeError("Atom type calculation failed. Couldn't convert atoms to mol2")
         
         os.chdir("..")
         if not debug:
@@ -1459,16 +1462,34 @@ def read_pqr(fileobj, atom_col_type=''):
     else:
         ls = [l.split() for l in fileobj.readlines() if l.split()[0] == 'ATOM' or l.split()[0] == 'HETATM']  
     
-    o = 0 if ls[0][4].isdigit() else 1
+    atom_types = []
+    atom_names = []
+    residues   = []
+    chains     = []
+    resnums    = []
+    positions  = []
+    charges    = []
+    radii      = []
     
-    atom_types = [l[0]                               for l in ls]
-    atom_names = [l[2]                               for l in ls]
-    residues   = [l[3]                               for l in ls]
-    chains     = [(o == 1) * l[4]                    for l in ls]
-    resnums    = [int(l[4 + o])                      for l in ls]
-    positions  = [[float(p) for p in l[5 + o:8 + o]] for l in ls]
-    charges    = [float(l[8 + o])                    for l in ls]
-    radii      = [float(l[9 + o])                    for l in ls]
+    for l in ls:
+        o = 0
+        if len(l[4]) > 1:
+            chains  += [l[4][0]]
+            resnums += [int(l[4][1:])]
+        elif not l[4].isdigit():
+            chains  += [l[4]]
+            resnums += [l[5]]
+            o = 1
+        else:
+            chains  += [""]
+            resnums += [l[4]]
+            
+        atom_types += [l[0]]
+        atom_names += [l[2]]
+        residues   += [l[3]]
+        positions  += [[float(p) for p in l[5+o:8+o]]]
+        charges    += [float(l[8+o])]
+        radii      += [float(l[9+o])]
     
     if not atom_col_type:
         atom_col_type = amber_or_pdb(atom_names)
@@ -1608,7 +1629,7 @@ def read_spf(filename, structure=['A'], return_atom_names=False):
     else:
         return(atoms)
     
-def read_log(filename, index):
+def read_irc(filename, index):
     atomic_symbols = {v: k for k, v in atomic_numbers.iteritems()}
     with open(filename, 'r') as lfile:
         lines = lfile.readlines()
