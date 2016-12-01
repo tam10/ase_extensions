@@ -1472,17 +1472,17 @@ def read_pqr(fileobj, atom_col_type=''):
     radii      = []
     
     for l in ls:
-        o = 0
-        if len(l[4]) > 1:
+        o = 0        
+        if l[4].isdigit():
+            chains  += [""]
+            resnums += [l[4]]
+        elif len(l[4]) > 1:
             chains  += [l[4][0]]
             resnums += [int(l[4][1:])]
-        elif not l[4].isdigit():
+        else:
             chains  += [l[4]]
             resnums += [l[5]]
             o = 1
-        else:
-            chains  += [""]
-            resnums += [l[4]]
             
         atom_types += [l[0]]
         atom_names += [l[2]]
